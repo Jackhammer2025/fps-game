@@ -30,9 +30,7 @@ A browser-based first-person shooter game built with Three.js and vanilla JavaSc
 
 ## Play the Game
 
-You can play the game online at: [https://[your-username].github.io/fps-game/](https://[your-username].github.io/fps-game/)
-
-(After publishing to GitHub Pages, replace [your-username] with your actual GitHub username)
+You can play the game online at: [https://Jackhammer2025.github.io/fps-game/](https://Jackhammer2025.github.io/fps-game/)
 
 ## Development
 
