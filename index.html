@@ -1,0 +1,3649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Blitz - 3D FPS Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #score {
+            font-size: 24px;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+        }
+        #timer {
+            font-size: 24px;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+            margin-top: 10px;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background-color: #0ff;
+            box-shadow: 0 0 5px #0ff;
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            top: 0;
+            left: 9px;
+        }
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 9px;
+            left: 0;
+        }
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            display: none;
+            z-index: 20;
+        }
+        #gameOverScreen h1 {
+            font-size: 48px;
+            color: #f00;
+            text-shadow: 0 0 10px #f00;
+            margin-bottom: 20px;
+        }
+        #finalScore {
+            font-size: 36px;
+            color: #0ff;
+            text-shadow: 0 0 8px #0ff;
+            margin-bottom: 30px;
+        }
+        #restartButton, #shareButton {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 0 10px #0066ff;
+            transition: all 0.3s ease;
+        }
+        #restartButton:hover, #shareButton:hover {
+            background-color: #0044cc;
+            box-shadow: 0 0 20px #0066ff;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #0ff;
+            text-shadow: 0 0 3px #0ff;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #startScreen h1 {
+            font-size: 60px;
+            color: #0ff;
+            text-shadow: 0 0 15px #0ff;
+            margin-bottom: 30px;
+        }
+        #startButton {
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 10px #0066ff;
+            transition: all 0.3s ease;
+        }
+        #startButton:hover {
+            background-color: #0044cc;
+            box-shadow: 0 0 20px #0066ff;
+            transform: scale(1.05);
+        }
+        #controlsInfo {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #fff;
+            text-align: center;
+            line-height: 1.6;
+        }
+        #debugInfo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ff0;
+            font-size: 14px;
+            z-index: 10;
+        }
+        #powerUpNotification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: #ff0;
+            text-shadow: 0 0 10px #ff0;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 15;
+        }
+        #activePowerUp {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            font-size: 18px;
+            color: #ff0;
+            text-shadow: 0 0 5px #ff0;
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+        #powerUpTimer {
+            width: 100%;
+            height: 4px;
+            background-color: #ff0;
+            box-shadow: 0 0 5px #ff0;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="timer">Time: 60</div>
+    </div>
+    <div id="activePowerUp">
+        <div id="powerUpName">Power-up Name</div>
+        <div id="powerUpTimer"></div>
+    </div>
+    <div id="powerUpNotification">Power-up Collected!</div>
+    <div id="crosshair"></div>
+    <div id="instructions">
+        WASD to move, Mouse to look, Click to shoot
+    </div>
+    <div id="gameOverScreen">
+        <h1>GAME OVER</h1>
+        <div id="finalScore">Your Score: 0</div>
+        <button id="restartButton">Play Again</button>
+        <button id="shareButton">Share Score</button>
+    </div>
+    <div id="startScreen">
+        <h1>BROWSER BLITZ</h1>
+        <button id="startButton">START GAME</button>
+        <div id="controlsInfo">
+            WASD - Move<br>
+            MOUSE - Aim<br>
+            CLICK - Shoot<br>
+            Destroy robots and survive for 60 seconds!
+        </div>
+    </div>
+    <div id="debugInfo"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // Game state variables
+        let scene, camera, renderer;
+        let player;
+        let enemies = [];
+        let score = 0;
+        let timeLeft = 60;
+        let isGameOver = false;
+        let isGamePaused = true;
+        let shooting = false;
+        let lastShotTime = 0;
+        let shotCooldown = 200; // milliseconds
+        let enemySpawnInterval;
+        let gameTimer;
+        let isControlsEnabled = false;
+        let raycaster; // Define raycaster as a global variable
+        
+        // Enemy type variables
+        let enemyDifficultyLevel = 0; // Increases over time
+        const ENEMY_TYPES = {
+            BASIC: {
+                name: 'Basic Robot',
+                health: 1,
+                speed: 0.05,
+                damage: 1,
+                scoreValue: 10,
+                color: 0xff0000,
+                scale: 1.0,
+                spawnWeight: 10, // Higher weight = more common
+                canShoot: false
+            },
+            SPEEDER: {
+                name: 'Speeder',
+                health: 0.7,
+                speed: 0.12,
+                damage: 1,
+                scoreValue: 15,
+                color: 0x00ffff,
+                scale: 0.8,
+                spawnWeight: 7,
+                canShoot: false
+            },
+            TANK: {
+                name: 'Tank',
+                health: 3,
+                speed: 0.03,
+                damage: 1,
+                scoreValue: 20,
+                color: 0xff6600,
+                scale: 1.3,
+                spawnWeight: 5,
+                canShoot: false
+            },
+            NIGHTMARE: {
+                name: 'Nightmare',
+                health: 1.5,
+                speed: 0.08,
+                damage: 1,
+                scoreValue: 25,
+                color: 0x9900ff,
+                scale: 1.1,
+                spawnWeight: 3,
+                teleports: true,
+                canShoot: false
+            },
+            BOSS: {
+                name: 'Overlord',
+                health: 10,
+                speed: 0.04,
+                damage: 2,
+                scoreValue: 100,
+                color: 0xff0066,
+                scale: 1.8,
+                spawnWeight: 1,
+                spawnsMinions: true,
+                canShoot: false
+            }
+        };
+        
+        // Power-up variables
+        let powerUps = [];
+        let activePowerUp = null;
+        let powerUpTimer = null;
+        let powerUpDuration = 10000; // 10 seconds
+        let powerUpSpawnInterval;
+        
+        // Audio variables
+        let audioContext;
+        let audioListener;
+        let sounds = {};
+        let musicPlaying = false;
+        let soundEnabled = true;
+        
+        // Power-up types
+        const POWER_UP_TYPES = {
+            RAPID_FIRE: {
+                name: 'Rapid Fire',
+                color: 0xff0000,
+                effect: () => { shotCooldown = 50; }, // 4x faster shooting
+                reset: () => { shotCooldown = 200; },
+                description: 'Rapid Fire!'
+            },
+            SHOTGUN: {
+                name: 'Shotgun',
+                color: 0xffaa00,
+                effect: () => { player.powerUpType = 'shotgun'; },
+                reset: () => { player.powerUpType = null; },
+                description: 'Shotgun Blast!'
+            },
+            EXPLOSIVE: {
+                name: 'Explosive Rounds',
+                color: 0xff6600,
+                effect: () => { player.powerUpType = 'explosive'; },
+                reset: () => { player.powerUpType = null; },
+                description: 'Explosive Rounds!'
+            },
+            SPEED_BOOST: {
+                name: 'Speed Boost',
+                color: 0x00ff00,
+                effect: () => { player.moveSpeedMultiplier = 2.0; },
+                reset: () => { player.moveSpeedMultiplier = 1.0; },
+                description: 'Speed Boost!'
+            }
+        };
+        
+        // Camera rotation variables
+        let pitchObject, yawObject;
+        let cameraRotation = {
+            x: 0, // pitch (up/down)
+            y: 0  // yaw (left/right)
+        };
+        
+        // Arena dimensions
+        const ARENA_SIZE = 100;
+        const WALL_HEIGHT = 20;
+        
+        // Player movement
+        const moveSpeed = 0.5;
+        const playerHeight = 5;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        // Debug info
+        const debugElement = document.getElementById('debugInfo');
+        function logDebug(message) {
+            debugElement.innerHTML = message;
+            console.log(message);
+        }
+        
+        // Initialize the game
+        function init() {
+            logDebug('Initializing game...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111);
+            
+            // Add fog for atmosphere
+            scene.fog = new THREE.FogExp2(0x000000, 0.01);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // Initialize raycaster
+            raycaster = new THREE.Raycaster();
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // Create player and controls
+            createPlayer();
+            
+            // Create the arena
+            createArena();
+            
+            // Add lights
+            createLights();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Set up start button
+            document.getElementById('startButton').addEventListener('click', function() {
+                logDebug('Start button clicked');
+                document.getElementById('startScreen').style.display = 'none';
+                startGame();
+            });
+            
+            // Set up restart button
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+            
+            // Set up share button
+            document.getElementById('shareButton').addEventListener('click', shareScore);
+            
+            // Start animation loop
+            logDebug('Starting animation loop');
+            animate();
+        }
+        
+        // Create player and controls
+        function createPlayer() {
+            logDebug('Creating player');
+            
+            // Create player collision box
+            const playerGeometry = new THREE.BoxGeometry(2, playerHeight, 2);
+            const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+            playerMaterial.visible = false; // Make player mesh invisible
+            player = new THREE.Mesh(playerGeometry, playerMaterial);
+            player.position.y = playerHeight / 2;
+            
+            // Add power-up properties to player
+            player.powerUpType = null;
+            player.moveSpeedMultiplier = 1.0;
+            
+            scene.add(player);
+            
+            // Set up camera rig for proper rotation
+            yawObject = new THREE.Object3D(); // This rotates horizontally
+            yawObject.position.y = playerHeight;
+            player.add(yawObject);
+            
+            pitchObject = new THREE.Object3D(); // This rotates vertically
+            pitchObject.add(camera);
+            yawObject.add(pitchObject);
+            
+            // Reset camera position relative to pitch object
+            camera.position.set(0, 0, 0);
+            
+            // Create gun model
+            const gunGeometry = new THREE.BoxGeometry(0.2, 0.2, 1);
+            const gunMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                emissive: 0x0066ff,
+                emissiveIntensity: 0.5
+            });
+            const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+            gun.position.set(0.5, -0.3, -1);
+            camera.add(gun);
+            
+            // Gun light
+            const gunLight = new THREE.PointLight(0x0066ff, 1, 10);
+            gunLight.position.set(0.5, -0.3, -0.5);
+            camera.add(gunLight);
+        }
+        
+        // Create the game arena
+        function createArena() {
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Walls
+            createWall(0, WALL_HEIGHT / 2, -ARENA_SIZE, ARENA_SIZE * 2, WALL_HEIGHT, 1); // Back wall
+            createWall(0, WALL_HEIGHT / 2, ARENA_SIZE, ARENA_SIZE * 2, WALL_HEIGHT, 1); // Front wall
+            createWall(-ARENA_SIZE, WALL_HEIGHT / 2, 0, 1, WALL_HEIGHT, ARENA_SIZE * 2); // Left wall
+            createWall(ARENA_SIZE, WALL_HEIGHT / 2, 0, 1, WALL_HEIGHT, ARENA_SIZE * 2); // Right wall
+            
+            // Ceiling
+            const ceilingGeometry = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
+            const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x111111,
+                side: THREE.DoubleSide,
+                emissive: 0x0066ff,
+                emissiveIntensity: 0.1
+            });
+            const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = WALL_HEIGHT;
+            scene.add(ceiling);
+            
+            // Add pillars and cover
+            for (let i = 0; i < 15; i++) {
+                const size = 2 + Math.random() * 4;
+                const height = 5 + Math.random() * 10;
+                const x = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+                const z = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+                
+                createPillar(x, height / 2, z, size, height, size);
+            }
+            
+            // Add neon lights around the arena
+            addNeonLights();
+        }
+        
+        // Create a wall
+        function createWall(x, y, z, width, height, depth) {
+            const wallGeometry = new THREE.BoxGeometry(width, height, depth);
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x222222,
+                metalness: 0.7,
+                roughness: 0.3,
+                emissive: 0x0066ff,
+                emissiveIntensity: 0.05
+            });
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.position.set(x, y, z);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            scene.add(wall);
+            return wall;
+        }
+        
+        // Create a pillar
+        function createPillar(x, y, z, width, height, depth) {
+            const pillarGeometry = new THREE.BoxGeometry(width, height, depth);
+            const pillarMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x444444,
+                metalness: 0.9,
+                roughness: 0.1,
+                emissive: 0x0066ff,
+                emissiveIntensity: 0.1
+            });
+            const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+            pillar.position.set(x, y, z);
+            pillar.castShadow = true;
+            pillar.receiveShadow = true;
+            scene.add(pillar);
+            
+            // Add neon trim to pillar
+            const trimGeometry = new THREE.BoxGeometry(width + 0.1, 0.1, depth + 0.1);
+            const trimMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x0066ff,
+                emissive: 0x0066ff,
+                emissiveIntensity: 1
+            });
+            
+            const topTrim = new THREE.Mesh(trimGeometry, trimMaterial);
+            topTrim.position.set(x, y + height / 2 + 0.05, z);
+            scene.add(topTrim);
+            
+            const bottomTrim = new THREE.Mesh(trimGeometry, trimMaterial);
+            bottomTrim.position.set(x, y - height / 2 - 0.05, z);
+            scene.add(bottomTrim);
+            
+            return pillar;
+        }
+        
+        // Add neon lights to the arena
+        function addNeonLights() {
+            // Floor grid
+            const gridHelper = new THREE.GridHelper(ARENA_SIZE * 2, 40, 0x0066ff, 0x0044cc);
+            scene.add(gridHelper);
+            
+            // Neon strips along walls
+            for (let i = -ARENA_SIZE + 10; i < ARENA_SIZE; i += 20) {
+                addNeonStrip(i, 2, -ARENA_SIZE + 0.6, 10, 0.1, 0.1, 0x00ffff);
+                addNeonStrip(i, 2, ARENA_SIZE - 0.6, 10, 0.1, 0.1, 0x00ffff);
+                addNeonStrip(-ARENA_SIZE + 0.6, 2, i, 0.1, 0.1, 10, 0xff00ff);
+                addNeonStrip(ARENA_SIZE - 0.6, 2, i, 0.1, 0.1, 10, 0xff00ff);
+            }
+        }
+        
+        // Add a neon light strip
+        function addNeonStrip(x, y, z, width, height, depth, color) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                emissive: color,
+                emissiveIntensity: 1
+            });
+            const strip = new THREE.Mesh(geometry, material);
+            strip.position.set(x, y, z);
+            scene.add(strip);
+            
+            // Add a point light at the strip
+            const light = new THREE.PointLight(color, 1, 15);
+            light.position.set(x, y, z);
+            scene.add(light);
+        }
+        
+        // Create lighting for the scene
+        function createLights() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x666666, 0.5);
+            scene.add(ambientLight);
+            
+            // Center light
+            const centerLight = new THREE.PointLight(0xffffff, 1, 150);
+            centerLight.position.set(0, WALL_HEIGHT - 5, 0);
+            centerLight.castShadow = true;
+            scene.add(centerLight);
+            
+            // Corner lights with different colors
+            addCornerLight(-ARENA_SIZE / 2, WALL_HEIGHT - 5, -ARENA_SIZE / 2, 0x0066ff);
+            addCornerLight(ARENA_SIZE / 2, WALL_HEIGHT - 5, -ARENA_SIZE / 2, 0xff00ff);
+            addCornerLight(-ARENA_SIZE / 2, WALL_HEIGHT - 5, ARENA_SIZE / 2, 0x00ffff);
+            addCornerLight(ARENA_SIZE / 2, WALL_HEIGHT - 5, ARENA_SIZE / 2, 0xff6600);
+        }
+        
+        // Add a corner light
+        function addCornerLight(x, y, z, color) {
+            const light = new THREE.PointLight(color, 1, 100);
+            light.position.set(x, y, z);
+            light.castShadow = true;
+            scene.add(light);
+        }
+        
+        // Set up control event listeners
+        function setupControls() {
+            logDebug('Setting up controls');
+            
+            // Mouse controls
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mouseup', onMouseUp);
+            
+            // Keyboard controls
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            
+            // Pointer lock change
+            document.addEventListener('pointerlockchange', onPointerLockChange);
+            document.addEventListener('mozpointerlockchange', onPointerLockChange);
+            document.addEventListener('webkitpointerlockchange', onPointerLockChange);
+            
+            isControlsEnabled = true;
+        }
+        
+        // Cache geometries and materials for better performance
+        const enemyGeometries = {
+            body: new THREE.CylinderGeometry(1, 1, 3, 8),
+            head: new THREE.SphereGeometry(1, 16, 16),
+            eye: new THREE.SphereGeometry(0.2, 8, 8),
+            tankBody: new THREE.BoxGeometry(2.5, 2, 2.5),
+            tankTurret: new THREE.CylinderGeometry(0.3, 0.3, 2, 8),
+            speederBody: new THREE.ConeGeometry(1, 3, 8),
+            nightmareBody: new THREE.DodecahedronGeometry(1.2, 1),
+            nightmareTentacle: new THREE.CylinderGeometry(0.1, 0.05, 2, 6),
+            bossBody: new THREE.IcosahedronGeometry(2, 1),
+            bossCrown: new THREE.ConeGeometry(1.5, 2, 5),
+            horn: new THREE.ConeGeometry(0.2, 0.8, 6),
+            spike: new THREE.ConeGeometry(0.15, 1.2, 4)
+        };
+        
+        const enemyMaterials = {
+            body: new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.5
+            }),
+            eye: new THREE.MeshStandardMaterial({
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 1
+            })
+        };
+        
+        // Select an enemy type based on weights and difficulty
+        function selectEnemyType() {
+            // Increase chance of harder enemies as game progresses
+            const timeProgress = Math.max(0, 1 - timeLeft / 60); // 0 at start, 1 at end
+            enemyDifficultyLevel = timeProgress * 2; // 0 to 2 scale
+            
+            // Calculate weighted probabilities
+            const weights = [];
+            let totalWeight = 0;
+            
+            for (const type in ENEMY_TYPES) {
+                let weight = ENEMY_TYPES[type].spawnWeight;
+                
+                // Adjust weights based on difficulty level
+                if (type === 'BASIC') {
+                    weight *= (1 - timeProgress * 0.5); // Reduce basic enemies over time
+                } else if (type === 'BOSS') {
+                    // Only spawn bosses in the second half of the game
+                    weight *= (timeProgress > 0.5) ? timeProgress * 2 : 0;
+                } else {
+                    weight *= (1 + timeProgress); // Increase other types over time
+                }
+                
+                weights.push({ type, weight });
+                totalWeight += weight;
+            }
+            
+            // Random selection based on weights
+            let random = Math.random() * totalWeight;
+            let cumulativeWeight = 0;
+            
+            for (const entry of weights) {
+                cumulativeWeight += entry.weight;
+                if (random <= cumulativeWeight) {
+                    return entry.type;
+                }
+            }
+            
+            return 'BASIC'; // Fallback
+        }
+        
+        // Spawn an enemy with optimized resource usage
+        function spawnEnemy() {
+            if (isGameOver || isGamePaused) return;
+            
+            // Check if we have too many enemies already
+            if (enemies.length >= 30) return;
+            
+            // Random position at the edge of the arena
+            let x, z;
+            if (Math.random() < 0.5) {
+                x = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+                z = (Math.random() < 0.5) ? -ARENA_SIZE + 5 : ARENA_SIZE - 5;
+            } else {
+                x = (Math.random() < 0.5) ? -ARENA_SIZE + 5 : ARENA_SIZE - 5;
+                z = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+            }
+            
+            try {
+                // Select enemy type
+                const enemyType = selectEnemyType();
+                const typeData = ENEMY_TYPES[enemyType];
+                
+                // Create enemy based on type
+                let enemyMesh;
+                
+                switch (enemyType) {
+                    case 'SPEEDER':
+                        enemyMesh = createSpeederEnemy(x, z, typeData);
+                        break;
+                    case 'TANK':
+                        enemyMesh = createTankEnemy(x, z, typeData);
+                        break;
+                    case 'NIGHTMARE':
+                        enemyMesh = createNightmareEnemy(x, z, typeData);
+                        break;
+                    case 'BOSS':
+                        enemyMesh = createBossEnemy(x, z, typeData);
+                        break;
+                    default: // BASIC
+                        enemyMesh = createBasicEnemy(x, z, typeData);
+                }
+                
+                // Enemy properties
+                const enemy = {
+                    mesh: enemyMesh,
+                    type: enemyType,
+                    typeData: typeData,
+                    speed: typeData.speed + Math.random() * 0.02, // Small random variation
+                    health: typeData.health,
+                    isDead: false,
+                    createdAt: Date.now(), // Track when it was created for cleanup
+                    lastTeleportTime: 0, // For teleporting enemies
+                    lastSpawnTime: 0, // For enemies that spawn minions
+                    lastShootTime: 0 // For enemies that can shoot
+                };
+                
+                enemies.push(enemy);
+            } catch (error) {
+                console.error("Error spawning enemy:", error);
+                logDebug("Enemy spawn error: " + error.message);
+            }
+        }
+        
+        // Create a basic robot enemy
+        function createBasicEnemy(x, z, typeData) {
+            // Create enemy body using cached geometries and materials
+            const bodyMaterial = enemyMaterials.body.clone();
+            bodyMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            const body = new THREE.Mesh(enemyGeometries.body, bodyMaterial);
+            body.position.set(x, 1.5, z);
+            body.scale.set(typeData.scale, typeData.scale, typeData.scale);
+            body.castShadow = true;
+            scene.add(body);
+            
+            // Create enemy head
+            const head = new THREE.Mesh(enemyGeometries.head, bodyMaterial.clone());
+            head.position.set(0, 2.5, 0);
+            body.add(head);
+            
+            // Create enemy eyes
+            const eyeMaterial = enemyMaterials.eye.clone();
+            eyeMaterial.color.set(new THREE.Color(typeData.color));
+            eyeMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            const leftEye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+            leftEye.position.set(0.5, 0.3, 0.7);
+            leftEye.scale.set(1.2, 1.2, 1.2);
+            head.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+            rightEye.position.set(-0.5, 0.3, 0.7);
+            rightEye.scale.set(1.2, 1.2, 1.2);
+            head.add(rightEye);
+            
+            // Add horns to make it scarier
+            const hornMaterial = bodyMaterial.clone();
+            hornMaterial.metalness = 0.9;
+            
+            const leftHorn = new THREE.Mesh(enemyGeometries.horn, hornMaterial);
+            leftHorn.position.set(0.7, 0.8, 0);
+            leftHorn.rotation.z = Math.PI / 4;
+            head.add(leftHorn);
+            
+            const rightHorn = new THREE.Mesh(enemyGeometries.horn, hornMaterial);
+            rightHorn.position.set(-0.7, 0.8, 0);
+            rightHorn.rotation.z = -Math.PI / 4;
+            head.add(rightHorn);
+            
+            // Add point light to enemy
+            const enemyLight = new THREE.PointLight(typeData.color, 0.7, 5);
+            enemyLight.position.set(0, 0, 0);
+            body.add(enemyLight);
+            
+            return body;
+        }
+        
+        // Create a speeder enemy (fast and agile)
+        function createSpeederEnemy(x, z, typeData) {
+            // Create enemy body
+            const bodyMaterial = enemyMaterials.body.clone();
+            bodyMaterial.emissive.set(new THREE.Color(typeData.color));
+            bodyMaterial.metalness = 0.9;
+            
+            const body = new THREE.Mesh(enemyGeometries.speederBody, bodyMaterial);
+            body.position.set(x, 1.5, z);
+            body.scale.set(typeData.scale, typeData.scale, typeData.scale);
+            body.rotation.x = Math.PI / 2; // Lay the cone on its side
+            body.castShadow = true;
+            scene.add(body);
+            
+            // Create eye strip (glowing visor)
+            const eyeMaterial = enemyMaterials.eye.clone();
+            eyeMaterial.color.set(new THREE.Color(typeData.color));
+            eyeMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            const eyeGeometry = new THREE.BoxGeometry(1.5, 0.2, 0.1);
+            const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            eye.position.set(0, 0, 1.2);
+            body.add(eye);
+            
+            // Add fins for a sleek look
+            const finGeometry = new THREE.BoxGeometry(0.1, 0.8, 1.2);
+            const leftFin = new THREE.Mesh(finGeometry, bodyMaterial.clone());
+            leftFin.position.set(0.8, 0, 0);
+            body.add(leftFin);
+            
+            const rightFin = new THREE.Mesh(finGeometry, bodyMaterial.clone());
+            rightFin.position.set(-0.8, 0, 0);
+            body.add(rightFin);
+            
+            // Add exhaust effect
+            const exhaustGeometry = new THREE.CylinderGeometry(0.2, 0.4, 0.8, 8);
+            const exhaustMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.8,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            const exhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
+            exhaust.position.set(0, 0, -1.8);
+            exhaust.rotation.x = Math.PI / 2;
+            body.add(exhaust);
+            
+            // Add point light for the exhaust
+            const exhaustLight = new THREE.PointLight(0xffaa00, 1, 3);
+            exhaustLight.position.set(0, 0, -1.5);
+            body.add(exhaustLight);
+            
+            // Add point light to enemy
+            const enemyLight = new THREE.PointLight(typeData.color, 0.7, 5);
+            enemyLight.position.set(0, 0, 0);
+            body.add(enemyLight);
+            
+            return body;
+        }
+        
+        // Create a tank enemy (slow but tough)
+        function createTankEnemy(x, z, typeData) {
+            // Create enemy body
+            const bodyMaterial = enemyMaterials.body.clone();
+            bodyMaterial.emissive.set(new THREE.Color(typeData.color));
+            bodyMaterial.metalness = 0.7;
+            bodyMaterial.roughness = 0.3;
+            
+            const body = new THREE.Mesh(enemyGeometries.tankBody, bodyMaterial);
+            body.position.set(x, 1.5, z);
+            body.scale.set(typeData.scale, typeData.scale, typeData.scale);
+            body.castShadow = true;
+            scene.add(body);
+            
+            // Create turret
+            const turret = new THREE.Mesh(enemyGeometries.tankTurret, bodyMaterial.clone());
+            turret.position.set(0, 1.5, 0);
+            turret.rotation.x = Math.PI / 2; // Point forward
+            body.add(turret);
+            
+            // Create eyes/sensors
+            const eyeMaterial = enemyMaterials.eye.clone();
+            eyeMaterial.color.set(new THREE.Color(typeData.color));
+            eyeMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            const mainEye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+            mainEye.scale.set(1.5, 1.5, 1.5);
+            mainEye.position.set(0, 0, 1.2);
+            turret.add(mainEye);
+            
+            // Add armor plates and spikes
+            const plateGeometry = new THREE.BoxGeometry(2.7, 0.3, 2.7);
+            const topPlate = new THREE.Mesh(plateGeometry, bodyMaterial.clone());
+            topPlate.position.set(0, 1.1, 0);
+            body.add(topPlate);
+            
+            // Add spikes
+            const spikePositions = [
+                { x: 1.2, y: 0, z: 1.2 },
+                { x: -1.2, y: 0, z: 1.2 },
+                { x: 1.2, y: 0, z: -1.2 },
+                { x: -1.2, y: 0, z: -1.2 }
+            ];
+            
+            const spikeMaterial = bodyMaterial.clone();
+            spikeMaterial.metalness = 0.9;
+            
+            spikePositions.forEach(pos => {
+                const spike = new THREE.Mesh(enemyGeometries.spike, spikeMaterial);
+                spike.position.set(pos.x, pos.y + 1.1, pos.z);
+                spike.rotation.x = Math.PI;
+                body.add(spike);
+            });
+            
+            // Add treads
+            const treadGeometry = new THREE.BoxGeometry(3, 0.5, 0.2);
+            const leftTread = new THREE.Mesh(treadGeometry, bodyMaterial.clone());
+            leftTread.position.set(0, -0.75, 1.3);
+            body.add(leftTread);
+            
+            const rightTread = new THREE.Mesh(treadGeometry, bodyMaterial.clone());
+            rightTread.position.set(0, -0.75, -1.3);
+            body.add(rightTread);
+            
+            // Add point light to enemy
+            const enemyLight = new THREE.PointLight(typeData.color, 0.7, 5);
+            enemyLight.position.set(0, 1, 0);
+            body.add(enemyLight);
+            
+            return body;
+        }
+        
+        // Create a nightmare enemy (teleporting horror)
+        function createNightmareEnemy(x, z, typeData) {
+            // Create enemy body
+            const bodyMaterial = enemyMaterials.body.clone();
+            bodyMaterial.emissive.set(new THREE.Color(typeData.color));
+            bodyMaterial.metalness = 0.5;
+            bodyMaterial.roughness = 0.7;
+            
+            const body = new THREE.Mesh(enemyGeometries.nightmareBody, bodyMaterial);
+            body.position.set(x, 2, z);
+            body.scale.set(typeData.scale, typeData.scale, typeData.scale);
+            body.castShadow = true;
+            scene.add(body);
+            
+            // Create multiple eyes all over
+            const eyeMaterial = enemyMaterials.eye.clone();
+            eyeMaterial.color.set(new THREE.Color(typeData.color));
+            eyeMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            // Random eye positions
+            const eyeCount = 6;
+            for (let i = 0; i < eyeCount; i++) {
+                const phi = Math.acos(-1 + (2 * i) / eyeCount);
+                const theta = Math.sqrt(eyeCount * Math.PI) * phi;
+                
+                const eye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+                eye.scale.set(0.8, 0.8, 0.8);
+                
+                // Position on sphere surface
+                eye.position.x = Math.sin(phi) * Math.cos(theta) * 1.2;
+                eye.position.y = Math.sin(phi) * Math.sin(theta) * 1.2;
+                eye.position.z = Math.cos(phi) * 1.2;
+                
+                // Make eye look outward
+                eye.lookAt(eye.position.clone().multiplyScalar(2));
+                
+                body.add(eye);
+            }
+            
+            // Add tentacles
+            const tentacleCount = 5;
+            const tentacleMaterial = bodyMaterial.clone();
+            
+            for (let i = 0; i < tentacleCount; i++) {
+                const angle = (i / tentacleCount) * Math.PI * 2;
+                const tentacle = new THREE.Mesh(enemyGeometries.nightmareTentacle, tentacleMaterial);
+                
+                tentacle.position.set(
+                    Math.sin(angle) * 1.2,
+                    -1.2,
+                    Math.cos(angle) * 1.2
+                );
+                
+                // Rotate to point downward and outward
+                tentacle.rotation.x = Math.PI / 2;
+                tentacle.rotation.z = angle;
+                
+                body.add(tentacle);
+            }
+            
+            // Add smoky effect
+            const smokeGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+            const smokeMaterial = new THREE.MeshBasicMaterial({
+                color: typeData.color,
+                transparent: true,
+                opacity: 0.2
+            });
+            
+            const smoke = new THREE.Mesh(smokeGeometry, smokeMaterial);
+            body.add(smoke);
+            
+            // Add point light to enemy
+            const enemyLight = new THREE.PointLight(typeData.color, 1, 8);
+            enemyLight.position.set(0, 0, 0);
+            body.add(enemyLight);
+            
+            return body;
+        }
+        
+        // Create a boss enemy (large and spawns minions)
+        function createBossEnemy(x, z, typeData) {
+            // Create enemy body
+            const bodyMaterial = enemyMaterials.body.clone();
+            bodyMaterial.emissive.set(new THREE.Color(typeData.color));
+            bodyMaterial.metalness = 0.8;
+            bodyMaterial.roughness = 0.2;
+            
+            const body = new THREE.Mesh(enemyGeometries.bossBody, bodyMaterial);
+            body.position.set(x, 3, z);
+            body.scale.set(typeData.scale, typeData.scale, typeData.scale);
+            body.castShadow = true;
+            scene.add(body);
+            
+            // Create crown/head
+            const crownMaterial = bodyMaterial.clone();
+            crownMaterial.metalness = 0.9;
+            
+            const crown = new THREE.Mesh(enemyGeometries.bossCrown, crownMaterial);
+            crown.position.set(0, 2.5, 0);
+            body.add(crown);
+            
+            // Create multiple eyes
+            const eyeMaterial = enemyMaterials.eye.clone();
+            eyeMaterial.color.set(new THREE.Color(typeData.color));
+            eyeMaterial.emissive.set(new THREE.Color(typeData.color));
+            
+            // Main eye (larger)
+            const mainEye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+            mainEye.scale.set(3, 3, 3);
+            mainEye.position.set(0, 0, 2);
+            body.add(mainEye);
+            
+            // Smaller eyes around the body
+            const smallEyeCount = 8;
+            for (let i = 0; i < smallEyeCount; i++) {
+                const angle = (i / smallEyeCount) * Math.PI * 2;
+                const eye = new THREE.Mesh(enemyGeometries.eye, eyeMaterial);
+                
+                eye.position.set(
+                    Math.sin(angle) * 1.8,
+                    Math.cos(angle) * 1.8,
+                    0.5
+                );
+                
+                eye.lookAt(new THREE.Vector3(
+                    Math.sin(angle) * 10,
+                    Math.cos(angle) * 10,
+                    5
+                ));
+                
+                body.add(eye);
+            }
+            
+            // Add spikes all over
+            const spikeCount = 12;
+            const spikeMaterial = bodyMaterial.clone();
+            
+            for (let i = 0; i < spikeCount; i++) {
+                const phi = Math.acos(-1 + (2 * i) / spikeCount);
+                const theta = Math.sqrt(spikeCount * Math.PI) * phi;
+                
+                const spike = new THREE.Mesh(enemyGeometries.spike, spikeMaterial);
+                
+                // Position on sphere surface
+                spike.position.x = Math.sin(phi) * Math.cos(theta) * 2;
+                spike.position.y = Math.sin(phi) * Math.sin(theta) * 2;
+                spike.position.z = Math.cos(phi) * 2;
+                
+                // Make spike point outward
+                spike.lookAt(spike.position.clone().multiplyScalar(2));
+                
+                body.add(spike);
+            }
+            
+            // Add energy aura
+            const auraGeometry = new THREE.SphereGeometry(2.5, 16, 16);
+            const auraMaterial = new THREE.MeshBasicMaterial({
+                color: typeData.color,
+                transparent: true,
+                opacity: 0.2
+            });
+            
+            const aura = new THREE.Mesh(auraGeometry, auraMaterial);
+            body.add(aura);
+            
+            // Add point light to enemy
+            const enemyLight = new THREE.PointLight(typeData.color, 1.5, 12);
+            enemyLight.position.set(0, 0, 0);
+            body.add(enemyLight);
+            
+            return body;
+        }
+        
+        // Handle enemy movement and behavior with performance optimizations
+        function updateEnemies() {
+            // Limit the number of active enemies for performance
+            const maxActiveEnemies = 30;
+            
+            if (enemies.length > maxActiveEnemies) {
+                // Remove excess enemies (from the oldest ones)
+                const excessCount = enemies.length - maxActiveEnemies;
+                for (let i = 0; i < excessCount; i++) {
+                    if (enemies[i] && enemies[i].mesh) {
+                        scene.remove(enemies[i].mesh);
+                    }
+                }
+                enemies.splice(0, excessCount);
+            }
+            
+            const currentTime = Date.now();
+            
+            for (let i = 0; i < enemies.length; i++) {
+                const enemy = enemies[i];
+                
+                // Skip if enemy is invalid
+                if (!enemy || !enemy.mesh) {
+                    enemies.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                if (!enemy.isDead) {
+                    // Handle special enemy behaviors
+                    if (enemy.type === 'NIGHTMARE' && enemy.typeData.teleports) {
+                        handleNightmareTeleport(enemy, currentTime);
+                    }
+                    
+                    if (enemy.type === 'BOSS' && enemy.typeData.spawnsMinions) {
+                        handleBossSpawning(enemy);
+                    }
+                    
+                    // Enemy shooting capability removed
+                    
+                    // Add visual effects based on enemy type
+                    updateEnemyEffects(enemy);
+                    
+                    // Move towards player
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(camera.position, enemy.mesh.position).normalize();
+                    
+                    // Apply enemy-specific movement patterns
+                    switch (enemy.type) {
+                        case 'SPEEDER':
+                            // Speeders move more erratically
+                            const jitter = new THREE.Vector3(
+                                (Math.random() - 0.5) * 0.1,
+                                0,
+                                (Math.random() - 0.5) * 0.1
+                            );
+                            direction.add(jitter).normalize();
+                            break;
+                            
+                        case 'TANK':
+                            // Tanks move more deliberately
+                            if (Math.random() < 0.05) {
+                                // Occasionally pause
+                                direction.multiplyScalar(0.5);
+                            }
+                            break;
+                            
+                        case 'BOSS':
+                            // Bosses move with more presence
+                            enemy.mesh.rotation.y += 0.01; // Slow intimidating rotation
+                            break;
+                    }
+                    
+                    // Apply movement
+                    enemy.mesh.position.x += direction.x * enemy.speed;
+                    enemy.mesh.position.z += direction.z * enemy.speed;
+                    
+                    // Make enemy face the player
+                    enemy.mesh.lookAt(camera.position);
+                    
+                    // Check if enemy is close to player (collision)
+                    if (enemy.mesh.position.distanceTo(camera.position) < 2 && !isGameOver) {
+                        gameOver();
+                        return; // Stop processing enemies after game over
+                    }
+                } else {
+                    // Dead enemy falls
+                    enemy.mesh.position.y -= 0.2;
+                    enemy.mesh.rotation.x += 0.1;
+                    
+                    // Add death effects based on enemy type
+                    if (enemy.type === 'BOSS' || enemy.type === 'NIGHTMARE') {
+                        // More dramatic death for special enemies
+                        if (!enemy.deathEffectCreated) {
+                            createDeathEffect(enemy);
+                            enemy.deathEffectCreated = true;
+                        }
+                    }
+                    
+                    // Remove enemy when it falls below the floor
+                    if (enemy.mesh.position.y < -10) {
+                        scene.remove(enemy.mesh);
+                        enemies.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+        }
+        
+        // Handle Nightmare enemy teleportation
+        function handleNightmareTeleport(enemy, currentTime) {
+            const now = currentTime;
+            const teleportCooldown = 5000; // 5 seconds between teleports
+            
+            if (now - enemy.lastTeleportTime > teleportCooldown && Math.random() < 0.02) {
+                // Teleport to a random position near the player
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 15 + Math.random() * 10; // Between 15-25 units away
+                
+                const newX = player.position.x + Math.sin(angle) * distance;
+                const newZ = player.position.z + Math.cos(angle) * distance;
+                
+                // Boundary check
+                const boundary = ARENA_SIZE - 5;
+                const clampedX = Math.max(-boundary, Math.min(boundary, newX));
+                const clampedZ = Math.max(-boundary, Math.min(boundary, newZ));
+                
+                // Create teleport effect at old position
+                createTeleportEffect(enemy.mesh.position.clone(), enemy.typeData.color);
+                
+                // Move enemy
+                enemy.mesh.position.set(clampedX, 2, clampedZ);
+                
+                // Create teleport effect at new position
+                createTeleportEffect(enemy.mesh.position.clone(), enemy.typeData.color);
+                
+                // Update last teleport time
+                enemy.lastTeleportTime = now;
+            }
+        }
+        
+        // Handle Boss enemy spawning minions
+        function handleBossSpawning(enemy) {
+            const now = Date.now();
+            const spawnCooldown = 10000; // 10 seconds between spawns
+            
+            if (now - enemy.lastSpawnTime > spawnCooldown && Math.random() < 0.1) {
+                // Spawn 2-3 basic minions
+                const minionCount = 2 + Math.floor(Math.random() * 2);
+                
+                for (let i = 0; i < minionCount; i++) {
+                    // Spawn minion near the boss
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 3 + Math.random() * 2; // Between 3-5 units away
+                    
+                    const minionX = enemy.mesh.position.x + Math.sin(angle) * distance;
+                    const minionZ = enemy.mesh.position.z + Math.cos(angle) * distance;
+                    
+                    // Create spawn effect
+                    createSpawnEffect(new THREE.Vector3(minionX, 1.5, minionZ), enemy.typeData.color);
+                    
+                    // Spawn a basic enemy at this position
+                    setTimeout(() => {
+                        if (!isGameOver && !isGamePaused) {
+                            // Create a basic enemy but with the boss's color
+                            const typeData = Object.assign({}, ENEMY_TYPES.BASIC, {
+                                color: enemy.typeData.color,
+                                scale: 0.8
+                            });
+                            
+                            const minionMesh = createBasicEnemy(minionX, minionZ, typeData);
+                            
+                            const minion = {
+                                mesh: minionMesh,
+                                type: 'BASIC',
+                                typeData: typeData,
+                                speed: 0.07, // Slightly faster than normal
+                                health: 0.7, // Slightly weaker than normal
+                                isDead: false,
+                                createdAt: Date.now(),
+                                isMinion: true
+                            };
+                            
+                            enemies.push(minion);
+                        }
+                    }, 1000); // Delay spawn by 1 second for effect
+                }
+                
+                // Update last spawn time
+                enemy.lastSpawnTime = now;
+            }
+        }
+        
+        // Update enemy visual effects
+        function updateEnemyEffects(enemy) {
+            switch (enemy.type) {
+                case 'SPEEDER':
+                    // Pulsing exhaust for speeders
+                    const exhausts = [];
+                    enemy.mesh.traverse(child => {
+                        if (child.material && child.material.emissive && 
+                            child.material.emissive.r > 0.5 && 
+                            child.material.emissive.g > 0.5) {
+                            exhausts.push(child);
+                        }
+                    });
+                    
+                    exhausts.forEach(exhaust => {
+                        exhaust.material.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+                    });
+                    break;
+                    
+                case 'NIGHTMARE':
+                    // Smoky aura for nightmares
+                    enemy.mesh.traverse(child => {
+                        if (child.material && child.material.opacity < 0.5) {
+                            child.rotation.y += 0.01;
+                            child.rotation.x += 0.005;
+                            child.scale.x = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+                            child.scale.y = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+                            child.scale.z = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+                        }
+                    });
+                    break;
+                    
+                case 'BOSS':
+                    // Pulsing aura for bosses
+                    enemy.mesh.traverse(child => {
+                        if (child.material && child.material.opacity < 0.5) {
+                            child.material.opacity = 0.1 + Math.sin(Date.now() * 0.003) * 0.1;
+                        }
+                    });
+                    break;
+            }
+        }
+        
+        // Create teleport effect
+        function createTeleportEffect(position, color) {
+            // Play teleport sound
+            playSound('teleport', {
+                volume: 0.5,
+                position: position.clone()
+            });
+            
+            // Create particles
+            const particleCount = 20;
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = position.x;
+                particlePositions[i3 + 1] = position.y;
+                particlePositions[i3 + 2] = position.z;
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: color,
+                size: 0.3,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            
+            // Create flash light
+            const flashLight = new THREE.PointLight(color, 2, 10);
+            flashLight.position.copy(position);
+            scene.add(flashLight);
+            
+            // Animate particles
+            let size = 0;
+            const maxSize = 5;
+            const expandSpeed = 0.2;
+            
+            const expandInterval = setInterval(() => {
+                size += expandSpeed;
+                
+                // Move particles outward
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    const dirX = (Math.random() - 0.5) * 2;
+                    const dirY = (Math.random() - 0.5) * 2;
+                    const dirZ = (Math.random() - 0.5) * 2;
+                    
+                    const length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+                    const normalizedX = dirX / (length || 1);
+                    const normalizedY = dirY / (length || 1);
+                    const normalizedZ = dirZ / (length || 1);
+                    
+                    positions[i3] += normalizedX * expandSpeed * 2;
+                    positions[i3 + 1] += normalizedY * expandSpeed * 2;
+                    positions[i3 + 2] += normalizedZ * expandSpeed * 2;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+                
+                // Fade out
+                particles.material.opacity = 1 - (size / maxSize);
+                flashLight.intensity = 2 * (1 - (size / maxSize));
+                
+                if (size >= maxSize) {
+                    clearInterval(expandInterval);
+                    scene.remove(particles);
+                    scene.remove(flashLight);
+                    
+                    // Dispose resources
+                    particleGeometry.dispose();
+                    particleMaterial.dispose();
+                }
+            }, 16);
+            
+            // Cleanup after a short time (backup)
+            setTimeout(() => {
+                clearInterval(expandInterval);
+                if (scene.children.includes(particles)) scene.remove(particles);
+                if (scene.children.includes(flashLight)) scene.remove(flashLight);
+                
+                // Dispose resources
+                particleGeometry.dispose();
+                particleMaterial.dispose();
+            }, 1000);
+        }
+        
+        // Create spawn effect for boss minions
+        function createSpawnEffect(position, color) {
+            // Play spawn sound
+            playSound('spawn', {
+                volume: 0.4,
+                position: position.clone()
+            });
+            
+            // Create circle effect
+            const circleGeometry = new THREE.RingGeometry(0.1, 0.5, 16);
+            const circleMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            
+            const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+            circle.position.copy(position);
+            circle.rotation.x = Math.PI / 2; // Lay flat
+            scene.add(circle);
+            
+            // Create light
+            const light = new THREE.PointLight(color, 1, 5);
+            light.position.copy(position);
+            scene.add(light);
+            
+            // Animate
+            let size = 0.5;
+            const maxSize = 3;
+            const expandSpeed = 0.1;
+            
+            const expandInterval = setInterval(() => {
+                size += expandSpeed;
+                circle.scale.set(size, size, size);
+                
+                // Fade out
+                circle.material.opacity = 0.8 * (1 - (size / maxSize));
+                light.intensity = 1 * (1 - (size / maxSize));
+                
+                if (size >= maxSize) {
+                    clearInterval(expandInterval);
+                    scene.remove(circle);
+                    scene.remove(light);
+                    
+                    // Dispose resources
+                    circleGeometry.dispose();
+                    circleMaterial.dispose();
+                }
+            }, 16);
+            
+            // Cleanup after a short time (backup)
+            setTimeout(() => {
+                clearInterval(expandInterval);
+                if (scene.children.includes(circle)) scene.remove(circle);
+                if (scene.children.includes(light)) scene.remove(light);
+                
+                // Dispose resources
+                circleGeometry.dispose();
+                circleMaterial.dispose();
+            }, 1000);
+        }
+        
+        // Create death effect for special enemies
+        function createDeathEffect(enemy) {
+            const position = enemy.mesh.position.clone();
+            const color = enemy.typeData.color;
+            
+            // Create explosion particles
+            const particleCount = 30;
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = position.x;
+                particlePositions[i3 + 1] = position.y;
+                particlePositions[i3 + 2] = position.z;
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: color,
+                size: 0.4,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            
+            // Create explosion light
+            const explosionLight = new THREE.PointLight(color, 3, 15);
+            explosionLight.position.copy(position);
+            scene.add(explosionLight);
+            
+            // Create shockwave
+            const shockwaveGeometry = new THREE.RingGeometry(0.1, 0.5, 16);
+            const shockwaveMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.6,
+                side: THREE.DoubleSide
+            });
+            
+            const shockwave = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
+            shockwave.position.copy(position);
+            shockwave.rotation.x = Math.PI / 2; // Lay flat
+            scene.add(shockwave);
+            
+            // Animate
+            let size = 0.5;
+            const maxSize = 15;
+            const expandSpeed = 0.3;
+            
+            const expandInterval = setInterval(() => {
+                size += expandSpeed;
+                
+                // Expand shockwave
+                shockwave.scale.set(size, size, size);
+                shockwave.material.opacity = 0.6 * (1 - (size / maxSize));
+                
+                // Move particles outward
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    const dirX = positions[i3] - position.x;
+                    const dirY = positions[i3 + 1] - position.y;
+                    const dirZ = positions[i3 + 2] - position.z;
+                    
+                    const length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+                    const normalizedX = dirX / (length || 1);
+                    const normalizedY = dirY / (length || 1);
+                    const normalizedZ = dirZ / (length || 1);
+                    
+                    positions[i3] += normalizedX * expandSpeed * 2;
+                    positions[i3 + 1] += normalizedY * expandSpeed * 2;
+                    positions[i3 + 2] += normalizedZ * expandSpeed * 2;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+                
+                // Fade out
+                particles.material.opacity = 0.8 * (1 - (size / maxSize));
+                explosionLight.intensity = 3 * (1 - (size / maxSize));
+                
+                if (size >= maxSize) {
+                    clearInterval(expandInterval);
+                    scene.remove(particles);
+                    scene.remove(explosionLight);
+                    scene.remove(shockwave);
+                    
+                    // Dispose resources
+                    particleGeometry.dispose();
+                    particleMaterial.dispose();
+                    shockwaveGeometry.dispose();
+                    shockwaveMaterial.dispose();
+                }
+            }, 16);
+            
+            // Cleanup after a short time (backup)
+            setTimeout(() => {
+                clearInterval(expandInterval);
+                if (scene.children.includes(particles)) scene.remove(particles);
+                if (scene.children.includes(explosionLight)) scene.remove(explosionLight);
+                if (scene.children.includes(shockwave)) scene.remove(shockwave);
+                
+                // Dispose resources
+                particleGeometry.dispose();
+                particleMaterial.dispose();
+                shockwaveGeometry.dispose();
+                shockwaveMaterial.dispose();
+            }, 3000);
+            
+            // Increase score for special enemies
+            score += enemy.typeData.scoreValue;
+            updateScore();
+        }
+        
+        // Pre-created geometries for laser
+        const laserGeometry = new THREE.CylinderGeometry(0.05, 0.05, 100, 6); // Reduced segments
+        laserGeometry.rotateX(Math.PI / 2);
+        
+        // Handle shooting with optimized performance
+        function shoot() {
+            if (isGameOver || isGamePaused) return;
+            
+            const now = Date.now();
+            if (now - lastShotTime < shotCooldown) return;
+            lastShotTime = now;
+            
+            try {
+                // Check for special shooting types based on power-ups
+                if (player.powerUpType === 'shotgun') {
+                    // Shotgun blast (multiple shots in a spread pattern)
+                    shootShotgun();
+                } else if (player.powerUpType === 'explosive') {
+                    // Explosive rounds
+                    shootExplosive();
+                } else {
+                    // Regular shot
+                    shootRegular();
+                }
+            } catch (error) {
+                console.error("Error in shoot function:", error);
+                logDebug("Shoot error: " + error.message);
+            }
+        }
+        
+        // Regular single shot
+        function shootRegular() {
+            // Create a visible laser beam
+            const laserMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                opacity: 0.7,
+                transparent: true
+            });
+            const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+            laser.position.set(0.5, -0.3, -50);
+            camera.add(laser);
+            
+            // Play laser sound
+            playSound('laser', { volume: 0.4 });
+            
+            // Remove laser after a short time
+            setTimeout(() => {
+                if (camera) {
+                    camera.remove(laser);
+                }
+                // Dispose materials
+                laserMaterial.dispose();
+            }, 80); // Reduced from 100ms
+            
+            // Create muzzle flash
+            createMuzzleFlash();
+            
+            // Make sure raycaster exists
+            if (!raycaster) {
+                logDebug("Creating new raycaster as it was undefined");
+                raycaster = new THREE.Raycaster();
+            }
+            
+            const raycasterOrigin = new THREE.Vector3();
+            const raycasterDirection = new THREE.Vector3();
+            
+            // Get camera world position and direction
+            camera.getWorldPosition(raycasterOrigin);
+            camera.getWorldDirection(raycasterDirection);
+            
+            // Update the raycaster with current position/direction
+            raycaster.set(raycasterOrigin, raycasterDirection);
+            
+            // Check for hits
+            checkHits(raycaster, raycasterOrigin);
+        }
+        
+        // Shotgun blast (multiple shots in a spread pattern)
+        function shootShotgun() {
+            // Create a visible shotgun blast effect
+            const shotgunColor = 0xffaa00;
+            
+            // Play shotgun sound
+            playSound('shotgun', { volume: 0.6 });
+            
+            // Create special muzzle flash for shotgun
+            createMuzzleFlash(shotgunColor, 2.0);
+            
+            // Make sure raycaster exists
+            if (!raycaster) {
+                logDebug("Creating new raycaster as it was undefined");
+                raycaster = new THREE.Raycaster();
+            }
+            
+            const raycasterOrigin = new THREE.Vector3();
+            const raycasterDirection = new THREE.Vector3();
+            
+            // Get camera world position and direction
+            camera.getWorldPosition(raycasterOrigin);
+            camera.getWorldDirection(raycasterDirection);
+            
+            // Create multiple raycasters with spread
+            const spreadAngle = 0.2; // Spread angle in radians
+            const numPellets = 8; // Number of shotgun pellets
+            
+            // Create visual effect for shotgun blast
+            for (let i = 0; i < numPellets; i++) {
+                // Create a thinner, shorter laser for each pellet
+                const pelletMaterial = new THREE.MeshBasicMaterial({
+                    color: shotgunColor,
+                    opacity: 0.5,
+                    transparent: true
+                });
+                
+                const pelletGeometry = new THREE.CylinderGeometry(0.03, 0.03, 50, 4);
+                pelletGeometry.rotateX(Math.PI / 2);
+                
+                const pellet = new THREE.Mesh(pelletGeometry, pelletMaterial);
+                
+                // Random spread within cone
+                const spreadX = (Math.random() - 0.5) * spreadAngle;
+                const spreadY = (Math.random() - 0.5) * spreadAngle;
+                
+                // Apply spread rotation
+                pellet.rotation.y = spreadX;
+                pellet.rotation.x = spreadY;
+                
+                pellet.position.set(0.5, -0.3, -25);
+                camera.add(pellet);
+                
+                // Remove pellet after a short time
+                setTimeout(() => {
+                    if (camera) {
+                        camera.remove(pellet);
+                    }
+                    // Dispose resources
+                    pelletMaterial.dispose();
+                    pelletGeometry.dispose();
+                }, 60 + Math.random() * 40);
+            }
+            
+            // Fire multiple raycasts with spread
+            for (let i = 0; i < numPellets; i++) {
+                // Create a new direction with random spread
+                const spreadDirection = raycasterDirection.clone();
+                
+                // Apply random spread
+                const spreadX = (Math.random() - 0.5) * spreadAngle;
+                const spreadY = (Math.random() - 0.5) * spreadAngle;
+                
+                // Create rotation matrices for the spread
+                const rotationMatrixX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0, 1, 0), spreadX);
+                const rotationMatrixY = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), spreadY);
+                
+                // Apply rotations
+                spreadDirection.applyMatrix4(rotationMatrixX);
+                spreadDirection.applyMatrix4(rotationMatrixY);
+                
+                // Create a new raycaster with spread direction
+                const spreadRaycaster = new THREE.Raycaster();
+                spreadRaycaster.set(raycasterOrigin, spreadDirection);
+                
+                // Check for hits with this pellet
+                checkHits(spreadRaycaster, raycasterOrigin, 0.5); // Reduced damage per pellet
+            }
+        }
+        
+        // Explosive rounds
+        function shootExplosive() {
+            // Create a visible laser beam with explosive color
+            const explosiveColor = 0xff6600;
+            const laserMaterial = new THREE.MeshBasicMaterial({
+                color: explosiveColor,
+                opacity: 0.7,
+                transparent: true
+            });
+            
+            const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+            laser.position.set(0.5, -0.3, -50);
+            camera.add(laser);
+            
+            // Play explosive shot sound
+            playSound('laser', { 
+                volume: 0.4,
+                playbackRate: 0.7 // Lower pitch for explosive rounds
+            });
+            
+            // Remove laser after a short time
+            setTimeout(() => {
+                if (camera) {
+                    camera.remove(laser);
+                }
+                // Dispose materials
+                laserMaterial.dispose();
+            }, 80);
+            
+            // Create special muzzle flash for explosive rounds
+            createMuzzleFlash(explosiveColor, 1.5);
+            
+            // Make sure raycaster exists
+            if (!raycaster) {
+                logDebug("Creating new raycaster as it was undefined");
+                raycaster = new THREE.Raycaster();
+            }
+            
+            const raycasterOrigin = new THREE.Vector3();
+            const raycasterDirection = new THREE.Vector3();
+            
+            // Get camera world position and direction
+            camera.getWorldPosition(raycasterOrigin);
+            camera.getWorldDirection(raycasterDirection);
+            
+            // Update the raycaster with current position/direction
+            raycaster.set(raycasterOrigin, raycasterDirection);
+            
+            // Check for hits with explosive effect
+            checkHits(raycaster, raycasterOrigin, 1, true);
+        }
+        
+        // Check for hits with enemies
+        function checkHits(raycaster, raycasterOrigin, damageMultiplier = 1, isExplosive = false) {
+            logDebug(`Shot fired: dir=(${raycaster.ray.direction.x.toFixed(2)}, ${raycaster.ray.direction.y.toFixed(2)}, ${raycaster.ray.direction.z.toFixed(2)})`);
+            
+            // Check for intersections with nearby enemies first for performance
+            // Create temporary array of enemies to check
+            let enemiesToCheck = [];
+            let enemyCount = 0;
+            
+            // Get nearby enemies first (closer ones are more likely to be hit)
+            for (let i = 0; i < enemies.length; i++) {
+                const enemy = enemies[i];
+                if (!enemy || !enemy.mesh || enemy.isDead) continue;
+                
+                enemyCount++;
+                
+                // Calculate distance to enemy
+                const distance = enemy.mesh.position.distanceTo(raycasterOrigin);
+                if (distance < 100) { // Extended range to make hitting easier
+                    enemiesToCheck.push({enemy, distance, index: i});
+                }
+            }
+            
+            logDebug(`Checking ${enemiesToCheck.length} enemies out of ${enemyCount} total`);
+            
+            // Sort by distance (check closest first)
+            enemiesToCheck.sort((a, b) => a.distance - b.distance);
+            
+            let hitEnemy = false;
+            let hitPosition = null;
+            
+            // Check for hits
+            for (let i = 0; i < enemiesToCheck.length; i++) {
+                const enemy = enemiesToCheck[i].enemy;
+                const enemyIdx = enemiesToCheck[i].index;
+                
+                try {
+                    if (!enemy.mesh) continue;
+                    
+                    const enemyBox = new THREE.Box3().setFromObject(enemy.mesh);
+                    const intersects = raycaster.ray.intersectBox(enemyBox, new THREE.Vector3());
+                    
+                    if (intersects) {
+                        logDebug(`Hit enemy at index ${enemyIdx} at distance ${enemiesToCheck[i].distance.toFixed(2)}`);
+                        hitEnemy = true;
+                        hitPosition = intersects.clone();
+                        
+                        // Enemy hit!
+                        enemy.health -= 1 * damageMultiplier;
+                        
+                        // Play hit sound
+                        playSound('enemyHit', {
+                            volume: 0.4,
+                            position: enemy.mesh.position.clone()
+                        });
+                        
+                        // Create hit effect
+                        createHitEffect(intersects, isExplosive);
+                        
+                        if (enemy.health <= 0) {
+                            // Enemy defeated
+                            enemy.isDead = true;
+                            
+                            // Play death sound based on enemy type
+                            if (enemy.type === 'BOSS') {
+                                playSound('bossDeath', {
+                                    volume: 0.7,
+                                    position: enemy.mesh.position.clone()
+                                });
+                            } else {
+                                playSound('enemyDeath', {
+                                    volume: 0.5,
+                                    position: enemy.mesh.position.clone(),
+                                    playbackRate: enemy.type === 'SPEEDER' ? 1.2 : 1.0
+                                });
+                            }
+                            
+                            // Change material to indicate defeat
+                            enemy.mesh.traverse(function(child) {
+                                if (child.isMesh && child.material) {
+                                    child.material.emissive.set(0x00ff00);
+                                    child.material.emissiveIntensity = 0.5;
+                                }
+                            });
+                            
+                            // Increase score
+                            score += enemy.typeData.scoreValue || 10;
+                            updateScore();
+                        }
+                        
+                        // For regular shots, stop after first hit
+                        // For explosive shots, continue to check other enemies
+                        if (!isExplosive) {
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error checking enemy ${enemyIdx}:`, error);
+                }
+            }
+            
+            // If we hit with an explosive shot, create explosion and damage nearby enemies
+            if (hitEnemy && isExplosive && hitPosition) {
+                createExplosion(hitPosition);
+                
+                // Play explosion sound
+                playSound('explosion', {
+                    volume: 0.6,
+                    position: hitPosition.clone()
+                });
+                
+                // Damage enemies in blast radius
+                const blastRadius = 10;
+                for (let i = 0; i < enemies.length; i++) {
+                    const enemy = enemies[i];
+                    if (!enemy || !enemy.mesh || enemy.isDead) continue;
+                    
+                    // Calculate distance to explosion
+                    const distance = enemy.mesh.position.distanceTo(hitPosition);
+                    if (distance < blastRadius) {
+                        // Calculate damage based on distance (more damage closer to explosion)
+                        const damage = 1 * (1 - distance / blastRadius);
+                        enemy.health -= damage;
+                        
+                        if (enemy.health <= 0) {
+                            // Enemy defeated
+                            enemy.isDead = true;
+                            
+                            // Play death sound
+                            playSound('enemyDeath', {
+                                volume: 0.5,
+                                position: enemy.mesh.position.clone()
+                            });
+                            
+                            // Change material to indicate defeat
+                            enemy.mesh.traverse(function(child) {
+                                if (child.isMesh && child.material) {
+                                    child.material.emissive.set(0x00ff00);
+                                    child.material.emissiveIntensity = 0.5;
+                                }
+                            });
+                            
+                            // Increase score
+                            score += enemy.typeData.scoreValue || 10;
+                            updateScore();
+                        }
+                    }
+                }
+            }
+            
+            if (!hitEnemy) {
+                logDebug("No enemies hit");
+            }
+        }
+        
+        // Create explosion effect
+        function createExplosion(position) {
+            // Create explosion particles
+            const particleCount = 30;
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = position.x;
+                particlePositions[i3 + 1] = position.y;
+                particlePositions[i3 + 2] = position.z;
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0xff6600,
+                size: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            
+            // Create explosion light
+            const explosionLight = new THREE.PointLight(0xff6600, 3, 15);
+            explosionLight.position.copy(position);
+            scene.add(explosionLight);
+            
+            // Create explosion sphere
+            const explosionGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const explosionMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.8
+            });
+            const explosionMesh = new THREE.Mesh(explosionGeometry, explosionMaterial);
+            explosionMesh.position.copy(position);
+            scene.add(explosionMesh);
+            
+            // Animate explosion
+            let size = 0.5;
+            const maxSize = 10;
+            const expandSpeed = 0.5;
+            
+            const expandInterval = setInterval(() => {
+                size += expandSpeed;
+                explosionMesh.scale.set(size, size, size);
+                explosionMesh.material.opacity = 1 - (size / maxSize);
+                
+                // Move particles outward
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    const dirX = positions[i3] - position.x;
+                    const dirY = positions[i3 + 1] - position.y;
+                    const dirZ = positions[i3 + 2] - position.z;
+                    
+                    const length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+                    const normalizedX = dirX / (length || 1);
+                    const normalizedY = dirY / (length || 1);
+                    const normalizedZ = dirZ / (length || 1);
+                    
+                    positions[i3] += normalizedX * expandSpeed * 2;
+                    positions[i3 + 1] += normalizedY * expandSpeed * 2;
+                    positions[i3 + 2] += normalizedZ * expandSpeed * 2;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+                
+                if (size >= maxSize) {
+                    clearInterval(expandInterval);
+                    scene.remove(explosionMesh);
+                    scene.remove(particles);
+                    scene.remove(explosionLight);
+                    
+                    // Dispose resources
+                    explosionGeometry.dispose();
+                    explosionMaterial.dispose();
+                    particleGeometry.dispose();
+                    particleMaterial.dispose();
+                }
+            }, 16);
+            
+            // Remove explosion after a short time (backup cleanup)
+            setTimeout(() => {
+                clearInterval(expandInterval);
+                if (scene.children.includes(explosionMesh)) scene.remove(explosionMesh);
+                if (scene.children.includes(particles)) scene.remove(particles);
+                if (scene.children.includes(explosionLight)) scene.remove(explosionLight);
+                
+                // Dispose resources
+                explosionGeometry.dispose();
+                explosionMaterial.dispose();
+                particleGeometry.dispose();
+                particleMaterial.dispose();
+            }, 1000);
+        }
+        
+        // Pre-created geometries and materials for effects
+        const effectGeometries = {
+            muzzleParticles: new THREE.BufferGeometry()
+        };
+        
+        // Set up particle positions for muzzle flash
+        const setupEffectGeometries = () => {
+            const particleCount = 10; // Reduced for performance
+            const particlePositions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = (Math.random() - 0.5) * 0.5;
+                particlePositions[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                particlePositions[i3 + 2] = -1 - Math.random();
+            }
+            
+            effectGeometries.muzzleParticles.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        };
+        
+        // Create muzzle flash effect with optimized resource usage
+        let lastFlashTime = 0;
+        function createMuzzleFlash(color = 0x00ffff, intensity = 1.0) {
+            // Limit flash frequency for performance
+            const now = Date.now();
+            if (now - lastFlashTime < 50) return;
+            lastFlashTime = now;
+            
+            // Create a point light for the flash
+            const flashLight = new THREE.PointLight(color, 1.5 * intensity, 8);
+            flashLight.position.set(0.5, -0.3, -1);
+            camera.add(flashLight);
+            
+            // Create particles for the flash
+            const particleMaterial = new THREE.PointsMaterial({
+                color: color,
+                size: 0.1 * intensity,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particles = new THREE.Points(effectGeometries.muzzleParticles, particleMaterial);
+            particles.position.set(0.5, -0.3, -1);
+            camera.add(particles);
+            
+            // Remove effects after a short time
+            setTimeout(() => {
+                if (camera) {
+                    camera.remove(flashLight);
+                    camera.remove(particles);
+                }
+                // Dispose resources
+                particleMaterial.dispose();
+            }, 80);
+        }
+        
+        // Track active effects to limit their number
+        const activeEffects = {
+            hitEffects: 0,
+            maxHitEffects: 5
+        };
+        
+        // Create hit effect with limited resources
+        function createHitEffect(position, isExplosive = false) {
+            // Limit the number of simultaneous hit effects
+            if (activeEffects.hitEffects >= activeEffects.maxHitEffects) return;
+            
+            activeEffects.hitEffects++;
+            
+            try {
+                // Create explosion particles (reduced count)
+                const particleCount = isExplosive ? 25 : 15; // More particles for explosive hits
+                const particleGeometry = new THREE.BufferGeometry();
+                const particlePositions = new Float32Array(particleCount * 3);
+                
+                const hitColor = isExplosive ? 0xff6600 : 0xff6600;
+                const hitSize = isExplosive ? 0.3 : 0.2;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    particlePositions[i3] = position.x + (Math.random() - 0.5) * (isExplosive ? 3 : 2);
+                    particlePositions[i3 + 1] = position.y + (Math.random() - 0.5) * (isExplosive ? 3 : 2);
+                    particlePositions[i3 + 2] = position.z + (Math.random() - 0.5) * (isExplosive ? 3 : 2);
+                }
+                
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+                
+                const particleMaterial = new THREE.PointsMaterial({
+                    color: hitColor,
+                    size: hitSize,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const particles = new THREE.Points(particleGeometry, particleMaterial);
+                scene.add(particles);
+                
+                // Create hit light (reduced intensity)
+                const hitLight = new THREE.PointLight(hitColor, isExplosive ? 2.5 : 1.5, isExplosive ? 8 : 4);
+                hitLight.position.copy(position);
+                scene.add(hitLight);
+                
+                // Remove effects after a shorter time
+                setTimeout(() => {
+                    scene.remove(particles);
+                    scene.remove(hitLight);
+                    
+                    // Clean up resources
+                    particleGeometry.dispose();
+                    particleMaterial.dispose();
+                    
+                    // Decrement active effects counter
+                    activeEffects.hitEffects--;
+                }, isExplosive ? 300 : 200); // Longer duration for explosive hits
+            } catch (error) {
+                console.error("Error creating hit effect:", error);
+                activeEffects.hitEffects--;
+            }
+        }
+        
+        // Update the score display
+        function updateScore() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+        
+        // Update the timer display
+        function updateTimer() {
+            document.getElementById('timer').textContent = `Time: ${timeLeft}`;
+        }
+        
+        // Start the game
+        function startGame() {
+            logDebug('Starting game');
+            
+            // Resume audio context if it was suspended
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    logDebug('Audio context resumed on game start');
+                });
+            }
+            
+            // Play game start sound
+            playSound('gameStart', { volume: 0.5 });
+            
+            // Setup controls if not already set up
+            if (!isControlsEnabled) {
+                setupControls();
+            }
+            
+            // Reset game state
+            isGamePaused = false;
+            score = 0;
+            timeLeft = 60;
+            updateScore();
+            updateTimer();
+            
+            // Lock pointer for camera control
+            lockPointer();
+            
+            // Start spawning enemies
+            spawnEnemies();
+            
+            // Start spawning power-ups
+            spawnPowerUps();
+            
+            // Start the countdown timer
+            startTimer();
+        }
+        
+        // Lock pointer for FPS controls
+        function lockPointer() {
+            logDebug('Attempting to lock pointer');
+            
+            try {
+                const canvasElement = renderer.domElement;
+                
+                canvasElement.requestPointerLock = canvasElement.requestPointerLock ||
+                                                 canvasElement.mozRequestPointerLock ||
+                                                 canvasElement.webkitRequestPointerLock;
+                
+                if (canvasElement.requestPointerLock) {
+                    canvasElement.requestPointerLock();
+                    logDebug('Pointer lock requested');
+                } else {
+                    logDebug('Pointer lock not supported by browser');
+                }
+            } catch (error) {
+                logDebug('Error locking pointer: ' + error.message);
+            }
+        }
+        
+        // Handle pointer lock change
+        function onPointerLockChange() {
+            logDebug('Pointer lock change event');
+            
+            const isLocked = document.pointerLockElement === renderer.domElement ||
+                          document.mozPointerLockElement === renderer.domElement ||
+                          document.webkitPointerLockElement === renderer.domElement;
+            
+            logDebug('Pointer is ' + (isLocked ? 'locked' : 'unlocked'));
+                          
+            if (!isLocked && !isGameOver) {
+                isGamePaused = true;
+                
+                // Show pause message
+                const existingPause = document.getElementById('pauseMessage');
+                if (existingPause) {
+                    existingPause.remove();
+                }
+                
+                const pauseMsg = document.createElement('div');
+                pauseMsg.id = 'pauseMessage';
+                pauseMsg.style.position = 'absolute';
+                pauseMsg.style.top = '50%';
+                pauseMsg.style.left = '50%';
+                pauseMsg.style.transform = 'translate(-50%, -50%)';
+                pauseMsg.style.color = '#0ff';
+                pauseMsg.style.fontSize = '24px';
+                pauseMsg.style.textAlign = 'center';
+                pauseMsg.style.textShadow = '0 0 5px #0ff';
+                pauseMsg.style.zIndex = '15';
+                pauseMsg.innerHTML = 'Paused<br>Click to resume';
+                document.body.appendChild(pauseMsg);
+                
+                // Resume on click
+                const resumeHandler = function() {
+                    logDebug('Attempting to resume game');
+                    if (isGamePaused && !isGameOver) {
+                        const pauseElement = document.getElementById('pauseMessage');
+                        if (pauseElement) {
+                            pauseElement.remove();
+                        }
+                        lockPointer();
+                        isGamePaused = false;
+                        window.removeEventListener('click', resumeHandler);
+                    }
+                };
+                
+                window.addEventListener('click', resumeHandler);
+            }
+        }
+        
+        // Start spawning enemies with controlled intervals
+        function spawnEnemies() {
+            if (isGameOver) return;
+            
+            logDebug('Starting enemy spawning');
+            
+            // Clear any existing spawn interval
+            if (enemySpawnInterval) {
+                clearTimeout(enemySpawnInterval);
+            }
+            
+            // Initial spawn but with a delay
+            setTimeout(() => {
+                if (!isGameOver && !isGamePaused) {
+                    spawnEnemy();
+                }
+            }, 1000);
+            
+            // Set up decreasing spawn intervals
+            let spawnInterval = 2000; // Start with 2 seconds
+            const minSpawnInterval = 800; // Increased minimum from 500ms to 800ms for better performance
+            const decreaseRate = 100; // Decrease by 100ms every interval
+            let lastSpawnTime = Date.now();
+            
+            function scheduleNextSpawn() {
+                if (isGameOver) return;
+                
+                // Clear any existing timeout
+                if (enemySpawnInterval) {
+                    clearTimeout(enemySpawnInterval);
+                }
+                
+                enemySpawnInterval = setTimeout(() => {
+                    if (!isGamePaused) {
+                        // Throttle spawns if we have too many enemies
+                        const now = Date.now();
+                        if (now - lastSpawnTime > spawnInterval && enemies.length < 30) {
+                            spawnEnemy();
+                            lastSpawnTime = now;
+                            
+                            // Decrease spawn interval over time, but more gradually
+                            if (spawnInterval > minSpawnInterval && timeLeft < 50) {
+                                // More gradual decrease based on time left
+                                const decreaseAmount = Math.min(decreaseRate, 50 + (50 - timeLeft) * 2);
+                                spawnInterval -= decreaseAmount / 10; // Slowed down decrease rate
+                                
+                                // Round to nearest 50ms
+                                spawnInterval = Math.max(minSpawnInterval, Math.round(spawnInterval / 50) * 50);
+                            }
+                        }
+                    }
+                    
+                    // Only continue if game is still active
+                    if (!isGameOver) {
+                        scheduleNextSpawn();
+                    }
+                }, spawnInterval);
+            }
+            
+            // Start the spawn cycle
+            scheduleNextSpawn();
+        }
+        
+        // Start the countdown timer
+        function startTimer() {
+            logDebug('Starting game timer');
+            
+            // Clear any existing timer
+            if (gameTimer) {
+                clearInterval(gameTimer);
+            }
+            
+            gameTimer = setInterval(() => {
+                if (!isGamePaused) {
+                    timeLeft--;
+                    updateTimer();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(gameTimer);
+                        gameOver();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // Initialize effect geometries at startup
+        function initEffects() {
+            setupEffectGeometries();
+        }
+        
+        // Clean up resources to prevent memory leaks
+        function cleanupResources() {
+            // Clear all enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                if (enemies[i] && enemies[i].mesh) {
+                    scene.remove(enemies[i].mesh);
+                }
+            }
+            enemies = [];
+            
+            // Clear all power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                if (powerUps[i] && powerUps[i].mesh) {
+                    scene.remove(powerUps[i].mesh);
+                }
+            }
+            powerUps = [];
+            
+            // Deactivate any active power-up
+            if (activePowerUp) {
+                deactivatePowerUp();
+            }
+            
+            // Clear timers
+            if (gameTimer) clearInterval(gameTimer);
+            if (enemySpawnInterval) clearTimeout(enemySpawnInterval);
+            if (powerUpSpawnInterval) clearTimeout(powerUpSpawnInterval);
+            if (powerUpTimer) clearTimeout(powerUpTimer);
+            
+            // Make sure all effects are removed
+            activeEffects.hitEffects = 0;
+        }
+        
+        // Game over
+        function gameOver() {
+            logDebug('Game over');
+            
+            if (isGameOver) return; // Prevent multiple calls
+            isGameOver = true;
+            
+            // Play game over sound
+            playSound('gameOver', { volume: 0.6 });
+            
+            // Clean up resources
+            cleanupResources();
+            
+            // Unlock pointer
+            document.exitPointerLock = document.exitPointerLock ||
+                                       document.mozExitPointerLock ||
+                                       document.webkitExitPointerLock;
+            if (document.exitPointerLock) {
+                document.exitPointerLock();
+            }
+            
+            // Show game over screen
+            document.getElementById('finalScore').textContent = `Your Score: ${score}`;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+        
+        // Restart the game
+        function restartGame() {
+            logDebug('Restarting game');
+            
+            // Clean up resources
+            cleanupResources();
+            
+            // Reset game state
+            isGameOver = false;
+            isGamePaused = true;
+            
+            // Hide game over screen
+            document.getElementById('gameOverScreen').style.display = 'none';
+            
+            // Reset player position
+            player.position.set(0, playerHeight / 2, 0);
+            
+            // Reset player power-up properties
+            player.powerUpType = null;
+            player.moveSpeedMultiplier = 1.0;
+            
+            // Reset camera rotation
+            cameraRotation.x = 0;
+            cameraRotation.y = 0;
+            pitchObject.rotation.x = 0;
+            yawObject.rotation.y = 0;
+            
+            // Start game
+            startGame();
+        }
+        
+        // Share score on social media
+        function shareScore() {
+            const text = `I scored ${score} points in Browser Blitz! Can you beat that?`;
+            const url = window.location.href;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Browser Blitz Score',
+                    text: text,
+                    url: url
+                }).catch(error => logDebug('Share error: ' + error.message));
+            } else {
+                // Fallback to clipboard
+                navigator.clipboard.writeText(`${text} ${url}`).then(() => {
+                    alert('Score copied to clipboard! Share it with your friends.');
+                }).catch(error => logDebug('Clipboard error: ' + error.message));
+            }
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Handle mouse movement
+        function onMouseMove(event) {
+            if (isGameOver || isGamePaused) return;
+            
+            if (document.pointerLockElement === renderer.domElement ||
+                document.mozPointerLockElement === renderer.domElement ||
+                document.webkitPointerLockElement === renderer.domElement) {
+                
+                const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+                
+                // Update camera rotation values
+                cameraRotation.y -= movementX * 0.002; // Horizontal (yaw)
+                cameraRotation.x -= movementY * 0.002; // Vertical (pitch)
+                
+                // Limit vertical rotation to prevent flipping
+                cameraRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, cameraRotation.x));
+                
+                // Apply rotations to the camera rig
+                yawObject.rotation.y = cameraRotation.y;
+                pitchObject.rotation.x = cameraRotation.x;
+            }
+        }
+        
+        // Handle mouse down
+        function onMouseDown(event) {
+            if (event.button === 0) { // Left mouse button
+                shooting = true;
+                shoot();
+            }
+        }
+        
+        // Handle mouse up
+        function onMouseUp(event) {
+            if (event.button === 0) { // Left mouse button
+                shooting = false;
+            }
+        }
+        
+        // Handle key down
+        function onKeyDown(event) {
+            if (isGameOver || isGamePaused) return;
+            
+            switch (event.code) {
+                case 'KeyW':
+                    moveForward = true;
+                    break;
+                case 'KeyS':
+                    moveBackward = true;
+                    break;
+                case 'KeyA':
+                    moveLeft = true;
+                    break;
+                case 'KeyD':
+                    moveRight = true;
+                    break;
+            }
+        }
+        
+        // Handle key up
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                case 'KeyA':
+                    moveLeft = false;
+                    break;
+                case 'KeyD':
+                    moveRight = false;
+                    break;
+            }
+        }
+        
+        // Handle player movement
+        function movePlayer() {
+            if (isGameOver || isGamePaused) return;
+            
+            // Calculate movement direction based on camera facing
+            const moveVector = new THREE.Vector3(0, 0, 0);
+            
+            // Get the camera's forward and right directions
+            const forward = new THREE.Vector3(0, 0, -1);
+            const right = new THREE.Vector3(1, 0, 0);
+            
+            // Apply the yaw rotation to the directions
+            forward.applyQuaternion(yawObject.quaternion);
+            right.applyQuaternion(yawObject.quaternion);
+            
+            // Ensure we're only moving horizontally
+            forward.y = 0;
+            forward.normalize();
+            right.y = 0;
+            right.normalize();
+            
+            // Add movement based on keys pressed
+            if (moveForward) moveVector.add(forward);
+            if (moveBackward) moveVector.sub(forward);
+            if (moveRight) moveVector.add(right);
+            if (moveLeft) moveVector.sub(right);
+            
+            // Apply movement if there is any
+            if (moveVector.length() > 0) {
+                moveVector.normalize();
+                // Apply speed boost if active
+                const currentSpeed = moveSpeed * player.moveSpeedMultiplier;
+                player.position.x += moveVector.x * currentSpeed;
+                player.position.z += moveVector.z * currentSpeed;
+            }
+            
+            // Boundary check
+            const boundary = ARENA_SIZE - 2;
+            player.position.x = Math.max(-boundary, Math.min(boundary, player.position.x));
+            player.position.z = Math.max(-boundary, Math.min(boundary, player.position.z));
+        }
+        
+        // Animation loop with performance optimizations
+        let lastFrameTime = 0;
+        const targetFrameRate = 60;
+        const frameInterval = 1000 / targetFrameRate;
+        
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            // Throttle frame rate for performance
+            if (currentTime - lastFrameTime < frameInterval) {
+                return;
+            }
+            lastFrameTime = currentTime;
+            
+            try {
+                // Update debug info
+                updateDebugInfo();
+                
+                // Handle continuing shooting
+                if (shooting && !isGamePaused && !isGameOver) {
+                    shoot();
+                }
+                
+                // Move player
+                movePlayer();
+                
+                // Update enemies
+                if (!isGamePaused && !isGameOver) {
+                    updateEnemies();
+                    
+                    // Update projectiles
+                    updateProjectiles();
+                    
+                    // Update power-ups
+                    updatePowerUps();
+                }
+                
+                // Render scene
+                renderer.render(scene, camera);
+            } catch (error) {
+                console.error("Error in animation loop:", error);
+                logDebug("Error: " + error.message);
+            }
+        }
+        
+        // Create a power-up
+        function createPowerUp() {
+            // Don't spawn if game is over or paused
+            if (isGameOver || isGamePaused) return;
+            
+            // Limit the number of power-ups
+            if (powerUps.length >= 3) return;
+            
+            // Random position within the arena
+            const x = (Math.random() - 0.5) * ARENA_SIZE * 1.6;
+            const z = (Math.random() - 0.5) * ARENA_SIZE * 1.6;
+            
+            // Random power-up type
+            const powerUpKeys = Object.keys(POWER_UP_TYPES);
+            const randomType = powerUpKeys[Math.floor(Math.random() * powerUpKeys.length)];
+            const powerUpType = POWER_UP_TYPES[randomType];
+            
+            // Create power-up mesh
+            const powerUpGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const powerUpMaterial = new THREE.MeshStandardMaterial({
+                color: powerUpType.color,
+                emissive: powerUpType.color,
+                emissiveIntensity: 0.8,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            
+            const powerUpMesh = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
+            powerUpMesh.position.set(x, 2, z);
+            scene.add(powerUpMesh);
+            
+            // Add point light to power-up
+            const powerUpLight = new THREE.PointLight(powerUpType.color, 1, 10);
+            powerUpLight.position.set(0, 0, 0);
+            powerUpMesh.add(powerUpLight);
+            
+            // Create outer glow sphere
+            const glowGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: powerUpType.color,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+            powerUpMesh.add(glowMesh);
+            
+            // Power-up object
+            const powerUp = {
+                mesh: powerUpMesh,
+                type: randomType,
+                typeData: powerUpType,
+                createdAt: Date.now()
+            };
+            
+            powerUps.push(powerUp);
+            
+            return powerUp;
+        }
+        
+        // Start spawning power-ups
+        function spawnPowerUps() {
+            if (isGameOver) return;
+            
+            logDebug('Starting power-up spawning');
+            
+            // Clear any existing spawn interval
+            if (powerUpSpawnInterval) {
+                clearTimeout(powerUpSpawnInterval);
+            }
+            
+            // Initial spawn with a delay
+            setTimeout(() => {
+                if (!isGameOver && !isGamePaused) {
+                    createPowerUp();
+                }
+            }, 5000); // First power-up after 5 seconds
+            
+            // Set up spawn interval
+            const spawnInterval = 15000; // New power-up every 15 seconds
+            
+            function scheduleNextPowerUp() {
+                if (isGameOver) return;
+                
+                // Clear any existing timeout
+                if (powerUpSpawnInterval) {
+                    clearTimeout(powerUpSpawnInterval);
+                }
+                
+                powerUpSpawnInterval = setTimeout(() => {
+                    if (!isGamePaused) {
+                        createPowerUp();
+                    }
+                    
+                    // Only continue if game is still active
+                    if (!isGameOver) {
+                        scheduleNextPowerUp();
+                    }
+                }, spawnInterval);
+            }
+            
+            // Start the spawn cycle
+            scheduleNextPowerUp();
+        }
+        
+        // Update power-ups (rotation, collision detection)
+        function updatePowerUps() {
+            if (isGameOver || isGamePaused) return;
+            
+            for (let i = 0; i < powerUps.length; i++) {
+                const powerUp = powerUps[i];
+                
+                // Skip if power-up is invalid
+                if (!powerUp || !powerUp.mesh) {
+                    powerUps.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Rotate power-up
+                powerUp.mesh.rotation.y += 0.02;
+                powerUp.mesh.position.y = 2 + Math.sin(Date.now() * 0.002) * 0.5; // Floating effect
+                
+                // Check if player is close to power-up (collision)
+                if (powerUp.mesh.position.distanceTo(player.position) < 3) {
+                    // Collect power-up
+                    collectPowerUp(powerUp);
+                    
+                    // Remove power-up
+                    scene.remove(powerUp.mesh);
+                    powerUps.splice(i, 1);
+                    i--;
+                }
+            }
+            
+            // Update active power-up timer display
+            if (activePowerUp) {
+                const timeLeft = powerUpDuration - (Date.now() - activePowerUp.startTime);
+                const percentLeft = Math.max(0, timeLeft / powerUpDuration * 100);
+                document.getElementById('powerUpTimer').style.width = percentLeft + '%';
+            }
+        }
+        
+        // Collect power-up
+        function collectPowerUp(powerUp) {
+            logDebug(`Collected power-up: ${powerUp.typeData.name}`);
+            
+            // Play power-up sound
+            playSound('powerUp', { volume: 0.5 });
+            
+            // If there's an active power-up, deactivate it
+            if (activePowerUp) {
+                deactivatePowerUp();
+            }
+            
+            // Activate the new power-up
+            activatePowerUp(powerUp);
+            
+            // Show notification
+            showPowerUpNotification(powerUp.typeData.description);
+        }
+        
+        // Activate power-up
+        function activatePowerUp(powerUp) {
+            // Store the active power-up with start time
+            activePowerUp = {
+                type: powerUp.type,
+                typeData: powerUp.typeData,
+                startTime: Date.now()
+            };
+            
+            // Apply power-up effect
+            powerUp.typeData.effect();
+            
+            // Play specific power-up sound if it's a speed boost
+            if (powerUp.type === 'SPEED_BOOST') {
+                playSound('speedBoost', { volume: 0.4 });
+            }
+            
+            // Show active power-up UI
+            document.getElementById('powerUpName').textContent = powerUp.typeData.name;
+            document.getElementById('activePowerUp').style.display = 'block';
+            document.getElementById('activePowerUp').style.color = '#' + powerUp.typeData.color.toString(16).padStart(6, '0');
+            document.getElementById('powerUpTimer').style.backgroundColor = '#' + powerUp.typeData.color.toString(16).padStart(6, '0');
+            document.getElementById('powerUpTimer').style.boxShadow = `0 0 5px #${powerUp.typeData.color.toString(16).padStart(6, '0')}`;
+            
+            // Set timer to deactivate power-up
+            if (powerUpTimer) {
+                clearTimeout(powerUpTimer);
+            }
+            
+            powerUpTimer = setTimeout(() => {
+                deactivatePowerUp();
+            }, powerUpDuration);
+        }
+        
+        // Deactivate power-up
+        function deactivatePowerUp() {
+            if (!activePowerUp) return;
+            
+            // Reset power-up effect
+            activePowerUp.typeData.reset();
+            
+            // Hide active power-up UI
+            document.getElementById('activePowerUp').style.display = 'none';
+            
+            // Clear active power-up
+            activePowerUp = null;
+            
+            // Clear timer
+            if (powerUpTimer) {
+                clearTimeout(powerUpTimer);
+                powerUpTimer = null;
+            }
+        }
+        
+        // Show power-up notification
+        function showPowerUpNotification(message) {
+            const notification = document.getElementById('powerUpNotification');
+            notification.textContent = message;
+            notification.style.opacity = '1';
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+            }, 2000);
+        }
+        
+        // Initialize the game when the page loads
+        window.addEventListener('load', () => {
+            // Initialize the game
+            init();
+            
+            // Initialize effects
+            initEffects();
+            
+            // Initialize audio
+            initAudio();
+            
+            // Add error handler for unexpected errors
+            window.addEventListener('error', (event) => {
+                logDebug("Error caught: " + event.message);
+                console.error("Global error:", event);
+            });
+            
+            // Add cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                cleanupResources();
+                if (renderer) {
+                    renderer.dispose();
+                }
+                
+                // Clean up audio
+                if (audioContext) {
+                    audioContext.close();
+                }
+            });
+        });
+        
+        // Initialize audio system
+        function initAudio() {
+            try {
+                // Create audio context
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                
+                // Chrome requires user interaction before playing audio
+                if (audioContext.state === 'suspended') {
+                    logDebug('Audio context suspended. Waiting for user interaction.');
+                    
+                    // Add a message to inform the user
+                    const audioMessage = document.createElement('div');
+                    audioMessage.id = 'audioMessage';
+                    audioMessage.style.position = 'absolute';
+                    audioMessage.style.bottom = '80px';
+                    audioMessage.style.left = '50%';
+                    audioMessage.style.transform = 'translateX(-50%)';
+                    audioMessage.style.color = '#0ff';
+                    audioMessage.style.fontSize = '18px';
+                    audioMessage.style.textAlign = 'center';
+                    audioMessage.style.textShadow = '0 0 5px #0ff';
+                    audioMessage.style.zIndex = '100';
+                    audioMessage.innerHTML = 'Click anywhere to enable audio';
+                    document.body.appendChild(audioMessage);
+                    
+                    // Add a one-time click handler to resume audio context
+                    const resumeAudio = function() {
+                        audioContext.resume().then(() => {
+                            logDebug('Audio context resumed');
+                            
+                            // Remove the message
+                            const message = document.getElementById('audioMessage');
+                            if (message) {
+                                message.remove();
+                            }
+                            
+                            // Create simple audio elements for all sounds
+                            createSimpleAudioElements();
+                            
+                            // Start music
+                            if (soundEnabled && !musicPlaying) {
+                                setTimeout(playMusic, 1000);
+                            }
+                        });
+                        
+                        // Remove this event listener after first click
+                        document.removeEventListener('click', resumeAudio);
+                        document.removeEventListener('keydown', resumeAudio);
+                    };
+                    
+                    document.addEventListener('click', resumeAudio);
+                    document.addEventListener('keydown', resumeAudio);
+                } else {
+                    // Audio context is already running, create audio elements immediately
+                    createSimpleAudioElements();
+                }
+                
+                // Create listener for 3D audio
+                audioListener = new THREE.AudioListener();
+                camera.add(audioListener);
+                
+                // Add sound toggle button
+                addSoundToggle();
+                
+                logDebug('Audio system initialized');
+            } catch (error) {
+                console.error('Audio initialization failed:', error);
+                logDebug('Audio initialization failed: ' + error.message);
+                soundEnabled = false;
+            }
+        }
+        
+        // Create simple audio elements for all sounds
+        function createSimpleAudioElements() {
+            // Create a container for audio elements
+            const audioContainer = document.createElement('div');
+            audioContainer.id = 'audioContainer';
+            audioContainer.style.display = 'none';
+            document.body.appendChild(audioContainer);
+            
+            // Create local audio files using Web Audio API
+            createLocalAudioFiles();
+        }
+        
+        // Create local audio files using Web Audio API
+        function createLocalAudioFiles() {
+            if (!audioContext) return;
+            
+            try {
+                logDebug("Creating local audio files");
+                
+                // Define sound types with their parameters
+                const soundDefinitions = [
+                    // Weapon sounds
+                    { name: 'laser', type: 'sine', frequency: 880, duration: 0.2, attack: 0.01, decay: 0.2, volume: 0.5 },
+                    { name: 'shotgun', type: 'sawtooth', frequency: 100, duration: 0.3, attack: 0.01, decay: 0.3, volume: 0.6 },
+                    { name: 'explosion', type: 'noise', frequency: 100, duration: 0.5, attack: 0.01, decay: 0.5, volume: 0.7 },
+                    
+                    // Enemy sounds
+                    { name: 'enemyHit', type: 'square', frequency: 220, duration: 0.1, attack: 0.01, decay: 0.1, volume: 0.5 },
+                    { name: 'enemyDeath', type: 'sawtooth', frequency: 150, duration: 0.4, attack: 0.01, decay: 0.4, volume: 0.6 },
+                    { name: 'bossDeath', type: 'sawtooth', frequency: 80, duration: 0.8, attack: 0.01, decay: 0.8, volume: 0.7 },
+                    { name: 'teleport', type: 'sine', frequency: 1200, duration: 0.3, attack: 0.01, decay: 0.3, volume: 0.5 },
+                    { name: 'spawn', type: 'square', frequency: 300, duration: 0.3, attack: 0.01, decay: 0.3, volume: 0.5 },
+                    
+                    // Power-up sounds
+                    { name: 'powerUp', type: 'sine', frequency: 660, duration: 0.3, attack: 0.01, decay: 0.3, volume: 0.5 },
+                    { name: 'speedBoost', type: 'sine', frequency: 440, duration: 0.3, attack: 0.01, decay: 0.3, volume: 0.5 },
+                    
+                    // UI sounds
+                    { name: 'gameStart', type: 'sine', frequency: 440, duration: 0.5, attack: 0.01, decay: 0.5, volume: 0.5 },
+                    { name: 'gameOver', type: 'sawtooth', frequency: 220, duration: 0.5, attack: 0.01, decay: 0.5, volume: 0.5 }
+                ];
+                
+                // Create each sound
+                soundDefinitions.forEach(def => {
+                    try {
+                        // Create the sound
+                        sounds[def.name] = {
+                            isLoaded: true,
+                            isMusic: false,
+                            params: def,
+                            sources: []
+                        };
+                        
+                        logDebug(`Created local sound: ${def.name}`);
+                    } catch (error) {
+                        logError(`Failed to create local sound ${def.name}: ${error.message}`);
+                    }
+                });
+                
+                // Create music separately
+                createSimpleMusic();
+                
+                logDebug("Local audio files created successfully");
+            } catch (error) {
+                logError(`Error creating local audio files: ${error.message}`);
+            }
+        }
+        
+        // Create simple music
+        function createSimpleMusic() {
+            try {
+                // Create a spooky but less intense music definition
+                sounds['music'] = {
+                    isLoaded: true,
+                    isMusic: true,
+                    notes: [
+                        // Minor scale with less dissonance
+                        { frequency: 196.00, duration: 0.4, type: 'triangle' }, // G3 (low and mysterious)
+                        { frequency: 220.00, duration: 0.3, type: 'triangle' }, // A3
+                        { frequency: 233.08, duration: 0.4, type: 'triangle' }, // Bb3 (minor third - spooky but not harsh)
+                        { frequency: 196.00, duration: 0.5, type: 'triangle' }, // G3
+                        
+                        { frequency: 220.00, duration: 0.4, type: 'triangle' }, // A3
+                        { frequency: 233.08, duration: 0.3, type: 'triangle' }, // Bb3
+                        { frequency: 261.63, duration: 0.4, type: 'triangle' }, // C4
+                        { frequency: 220.00, duration: 0.5, type: 'triangle' }, // A3
+                        
+                        { frequency: 196.00, duration: 0.4, type: 'triangle' }, // G3
+                        { frequency: 220.00, duration: 0.3, type: 'triangle' }, // A3
+                        { frequency: 196.00, duration: 0.4, type: 'triangle' }, // G3
+                        { frequency: 174.61, duration: 0.5, type: 'triangle' }, // F3
+                        
+                        { frequency: 196.00, duration: 0.4, type: 'triangle' }, // G3
+                        { frequency: 174.61, duration: 0.3, type: 'triangle' }, // F3
+                        { frequency: 164.81, duration: 0.4, type: 'triangle' }, // E3
+                        { frequency: 146.83, duration: 0.6, type: 'triangle' }  // D3
+                    ],
+                    currentNote: 0,
+                    isPlaying: false,
+                    sources: []
+                };
+                
+                logDebug("Created subtle spooky music");
+            } catch (error) {
+                logError(`Failed to create music: ${error.message}`);
+            }
+        }
+        
+        // Play a sound with options
+        function playSound(name, options = {}) {
+            if (!soundEnabled || !sounds[name]) return null;
+            
+            try {
+                const sound = sounds[name];
+                
+                // If it's music, handle differently
+                if (sound.isMusic) {
+                    return playMusic();
+                }
+                
+                // Get sound parameters
+                const params = sound.params;
+                if (!params) {
+                    logError(`Sound parameters not found for ${name}`);
+                    return null;
+                }
+                
+                // Create oscillator
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // Set oscillator type and frequency
+                if (params.type === 'noise') {
+                    // Create noise
+                    const bufferSize = audioContext.sampleRate * params.duration;
+                    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    
+                    const noise = audioContext.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    noise.connect(gainNode);
+                    noise.start();
+                    
+                    // Store for cleanup
+                    sound.sources.push(noise);
+                    
+                    // Set timeout to remove from sources
+                    setTimeout(() => {
+                        const index = sound.sources.indexOf(noise);
+                        if (index !== -1) {
+                            sound.sources.splice(index, 1);
+                        }
+                    }, params.duration * 1000);
+                    
+                    // Return the noise source
+                    return noise;
+                } else {
+                    // Set oscillator type and frequency
+                    oscillator.type = params.type;
+                    oscillator.frequency.value = params.frequency;
+                    
+                    // Connect oscillator to gain node
+                    oscillator.connect(gainNode);
+                    
+                    // Connect gain node to destination
+                    gainNode.connect(audioContext.destination);
+                    
+                    // Set volume
+                    const volume = options.volume !== undefined ? options.volume : params.volume;
+                    
+                    // Set envelope
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + params.attack);
+                    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + params.attack + params.decay);
+                    
+                    // Start oscillator
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + params.attack + params.decay);
+                    
+                    // Store for cleanup
+                    sound.sources.push(oscillator);
+                    
+                    // Set timeout to remove from sources
+                    setTimeout(() => {
+                        const index = sound.sources.indexOf(oscillator);
+                        if (index !== -1) {
+                            sound.sources.splice(index, 1);
+                        }
+                    }, (params.attack + params.decay) * 1000);
+                    
+                    // Return the oscillator
+                    return oscillator;
+                }
+            } catch (error) {
+                logError(`Error playing sound ${name}: ${error.message}`);
+                return null;
+            }
+        }
+        
+        // Stop a sound
+        function stopSound(name) {
+            if (!sounds[name]) return;
+            
+            try {
+                const sound = sounds[name];
+                
+                // Stop all sources
+                if (sound.sources && sound.sources.length > 0) {
+                    sound.sources.forEach(source => {
+                        try {
+                            source.stop();
+                        } catch (error) {
+                            // Ignore errors from already stopped sources
+                        }
+                    });
+                    
+                    // Clear sources array
+                    sound.sources = [];
+                }
+                
+                // If it's music, set flag
+                if (sound.isMusic) {
+                    musicPlaying = false;
+                }
+            } catch (error) {
+                logError(`Error stopping sound ${name}: ${error.message}`);
+            }
+        }
+        
+        // Play background music
+        function playMusic() {
+            if (!soundEnabled || musicPlaying) return;
+            
+            try {
+                const music = sounds['music'];
+                
+                if (!music || !music.notes) {
+                    logError('Music not properly initialized');
+                    return;
+                }
+                
+                // Set flag
+                musicPlaying = true;
+                music.isPlaying = true;
+                music.currentNote = 0;
+                
+                // Function to play next note
+                function playNextNote() {
+                    if (!musicPlaying || !music.isPlaying) return;
+                    
+                    const noteInfo = music.notes[music.currentNote];
+                    
+                    // Create oscillator for this note
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    // Set oscillator type and frequency
+                    oscillator.type = noteInfo.type || 'sine';
+                    oscillator.frequency.value = noteInfo.frequency;
+                    
+                    // Add very slight detune for subtle variation
+                    oscillator.detune.value = Math.random() * 5 - 2.5;
+                    
+                    // Connect oscillator to gain node
+                    oscillator.connect(gainNode);
+                    
+                    // Connect gain node to destination
+                    gainNode.connect(audioContext.destination);
+                    
+                    // Add subtle tremolo effect
+                    const tremoloSpeed = 4; // Hz (slower)
+                    const tremoloDepth = 0.1; // Less intense
+                    
+                    // Set volume with envelope and tremolo - much quieter overall
+                    const baseVolume = 0.08; // Reduced volume significantly
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(baseVolume, audioContext.currentTime + 0.05);
+                    
+                    // Apply subtle tremolo during sustain
+                    const sustainTime = noteInfo.duration - 0.1;
+                    const tremSteps = 10; // Fewer steps for smoother effect
+                    const tremStepTime = sustainTime / tremSteps;
+                    
+                    for (let i = 0; i < tremSteps; i++) {
+                        const tremValue = baseVolume - Math.sin(i / tremSteps * Math.PI * 2 * tremoloSpeed) * tremoloDepth;
+                        gainNode.gain.linearRampToValueAtTime(
+                            tremValue, 
+                            audioContext.currentTime + 0.05 + (i * tremStepTime)
+                        );
+                    }
+                    
+                    // Final fade out
+                    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + noteInfo.duration);
+                    
+                    // Start oscillator
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + noteInfo.duration);
+                    
+                    // Store for cleanup
+                    music.sources.push(oscillator);
+                    
+                    // Move to next note
+                    music.currentNote = (music.currentNote + 1) % music.notes.length;
+                    
+                    // Schedule next note
+                    setTimeout(() => {
+                        // Remove this oscillator from sources
+                        const index = music.sources.indexOf(oscillator);
+                        if (index !== -1) {
+                            music.sources.splice(index, 1);
+                        }
+                        
+                        // Play next note if music is still playing
+                        if (musicPlaying && music.isPlaying) {
+                            playNextNote();
+                        }
+                    }, noteInfo.duration * 1000);
+                }
+                
+                // Start playing
+                playNextNote();
+                
+                logDebug('Subtle spooky music started playing');
+                return music;
+            } catch (error) {
+                logError(`Error playing music: ${error.message}`);
+                musicPlaying = false;
+                return null;
+            }
+        }
+        
+        // Add sound toggle button
+        function addSoundToggle() {
+            const soundToggle = document.createElement('div');
+            soundToggle.id = 'soundToggle';
+            soundToggle.innerHTML = '🔊';
+            soundToggle.style.position = 'absolute';
+            soundToggle.style.top = '20px';
+            soundToggle.style.right = '80px';
+            soundToggle.style.color = '#0ff';
+            soundToggle.style.fontSize = '24px';
+            soundToggle.style.cursor = 'pointer';
+            soundToggle.style.zIndex = '100';
+            soundToggle.style.textShadow = '0 0 5px #0ff';
+            
+            soundToggle.addEventListener('click', toggleSound);
+            
+            document.body.appendChild(soundToggle);
+        }
+        
+        // Toggle sound on/off
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            
+            const soundToggle = document.getElementById('soundToggle');
+            if (soundToggle) {
+                soundToggle.innerHTML = soundEnabled ? '🔊' : '🔇';
+            }
+            
+            if (soundEnabled) {
+                // Resume audio context if it was suspended
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                // Restart music if it was playing
+                if (!musicPlaying) {
+                    playMusic();
+                }
+            } else {
+                // Stop all sounds
+                for (const name in sounds) {
+                    stopSound(name);
+                }
+                
+                musicPlaying = false;
+                
+                // Suspend audio context to save resources
+                if (audioContext) {
+                    audioContext.suspend();
+                }
+            }
+        }
+        
+        // Add debug info for audio
+        function updateDebugInfo() {
+            if (!debugElement) return;
+            
+            // Create a clean debug display that doesn't overwrite itself
+            let debugInfo = '';
+            
+            // Add audio context state
+            if (audioContext) {
+                debugInfo += `Audio: ${audioContext.state} | `;
+                debugInfo += `Sounds loaded: ${Object.values(sounds).filter(s => s.isLoaded).length}/${Object.keys(sounds).length} | `;
+                debugInfo += `Music: ${musicPlaying ? 'Playing' : 'Stopped'} | `;
+            } else {
+                debugInfo += 'Audio: Not available | ';
+            }
+            
+            // Add other debug info
+            debugInfo += `FPS: ${Math.round(1000 / (Date.now() - lastFrameTime))} | `;
+            debugInfo += `Enemies: ${enemies.length} | `;
+            debugInfo += `PowerUps: ${powerUps.length}`;
+            
+            // Add error log (last 3 errors)
+            if (errorLog.length > 0) {
+                debugInfo += '<br>Recent errors:<br>';
+                const recentErrors = errorLog.slice(-3);
+                recentErrors.forEach(err => {
+                    debugInfo += `- ${err}<br>`;
+                });
+            }
+            
+            debugElement.innerHTML = debugInfo;
+        }
+        
+        // Error logging
+        const errorLog = [];
+        function logError(message) {
+            console.error(message);
+            errorLog.push(message);
+            // Keep only the last 10 errors
+            if (errorLog.length > 10) {
+                errorLog.shift();
+            }
+        }
+        
+        // Array to store projectiles
+        let projectiles = [];
+        
+        // Create a projectile
+        function createProjectile(position, direction, speed, color, damage, isPlayerProjectile = false) {
+            // Create projectile geometry
+            const geometry = new THREE.SphereGeometry(0.3, 8, 8);
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const projectile = new THREE.Mesh(geometry, material);
+            projectile.position.copy(position);
+            
+            // Add glow effect
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glowSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 8, 8),
+                glowMaterial
+            );
+            projectile.add(glowSphere);
+            
+            // Add to scene
+            scene.add(projectile);
+            
+            // Store projectile data
+            const projectileData = {
+                mesh: projectile,
+                direction: direction.clone().normalize(),
+                speed: speed,
+                damage: damage,
+                isPlayerProjectile: isPlayerProjectile,
+                createdTime: Date.now()
+            };
+            
+            projectiles.push(projectileData);
+            
+            // Play sound
+            if (isPlayerProjectile) {
+                playSound('laser');
+            }
+            
+            return projectileData;
+        }
+        
+        // Update projectiles
+        function updateProjectiles() {
+            const currentTime = Date.now();
+            
+            // Update each projectile
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                
+                // Move projectile
+                projectile.mesh.position.x += projectile.direction.x * projectile.speed;
+                projectile.mesh.position.y += projectile.direction.y * projectile.speed;
+                projectile.mesh.position.z += projectile.direction.z * projectile.speed;
+                
+                // Rotate projectile for effect
+                projectile.mesh.rotation.x += 0.02;
+                projectile.mesh.rotation.y += 0.02;
+                
+                // Pulse the glow
+                if (projectile.mesh.children.length > 0) {
+                    const glow = projectile.mesh.children[0];
+                    const pulseScale = 1 + 0.2 * Math.sin(currentTime * 0.01);
+                    glow.scale.set(pulseScale, pulseScale, pulseScale);
+                }
+                
+                // Check for collisions
+                if (projectile.isPlayerProjectile) {
+                    // Player projectiles hit enemies
+                    for (let j = 0; j < enemies.length; j++) {
+                        const enemy = enemies[j];
+                        if (!enemy.isDead) {
+                            const distance = projectile.mesh.position.distanceTo(enemy.mesh.position);
+                            if (distance < enemy.typeData.scale + 0.3) {
+                                // Hit enemy
+                                enemy.health -= 1;
+                                if (enemy.health <= 0) {
+                                    enemy.isDead = true;
+                                    score += enemy.typeData.scoreValue;
+                                    updateScoreDisplay();
+                                    playSound('enemyDeath');
+                                } else {
+                                    playSound('enemyHit');
+                                }
+                                
+                                // Remove projectile
+                                scene.remove(projectile.mesh);
+                                projectiles.splice(i, 1);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Enemy projectiles hit player
+                    const distanceToPlayer = projectile.mesh.position.distanceTo(camera.position);
+                    if (distanceToPlayer < 1.0 && !isGameOver) {
+                        // Game over
+                        gameOver();
+                        
+                        // Remove projectile
+                        scene.remove(projectile.mesh);
+                        projectiles.splice(i, 1);
+                        continue;
+                    }
+                }
+                
+                // Remove projectiles that have traveled too far
+                if (projectile.mesh.position.distanceTo(new THREE.Vector3(0, 0, 0)) > 100) {
+                    scene.remove(projectile.mesh);
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Remove projectiles that have existed for too long
+                if (currentTime - projectile.createdTime > 10000) {
+                    scene.remove(projectile.mesh);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
